@@ -1,0 +1,12 @@
+.site-header { position: sticky; top: 0; background: rgba(10,31,68,.96); border-bottom: 1px solid rgba(225,225,225,.12); z-index: 50; }
+.site-header .container { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 0; }
+.brand { display: flex; align-items: center; gap: .6rem; color: #e1e1e1; font-weight: 700; }
+.brand-mark { width: 2rem; height: 2rem; border: 2px solid #c08273; border-radius: .4rem; display: grid; place-items: center; color: #c08273; }
+.main-nav { display: flex; gap: 1rem; }
+.menu-toggle { display: none; background: transparent; border: 1px solid #c08273; color: #c08273; padding: .4rem .7rem; border-radius: .4rem; }
+.site-footer { padding: 2rem 0; background: #081731; border-top: 1px solid rgba(225,225,225,.12); }
+@media (max-width: 768px) {
+    .menu-toggle { display: block; }
+    .main-nav { display: none; flex-direction: column; position: absolute; top: 68px; right: 4%; background: #081731; padding: 1rem; border-radius: .5rem; }
+    .main-nav.is-open { display: flex; }
+}
