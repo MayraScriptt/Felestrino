@@ -33,7 +33,7 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'Conta sem permissao administrativa.']);
         }
 
-        return redirect()->route('admin.dashboard');
+        return redirect()->route('admin.home.edit');
     }
 
     public function logout(): RedirectResponse

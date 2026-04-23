@@ -4,32 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class MediaItem extends Model
+class HomeCard extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'title',
+        'description',
+        'icon',
         'link_url',
-        'category',
-        'file_path',
-        'mime_type',
-        'file_size',
-        'is_video',
         'display_order',
+        'is_active',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_video' => 'boolean',
+            'is_active' => 'boolean',
         ];
-    }
-
-    public function audits(): HasMany
-    {
-        return $this->hasMany(MediaItemAudit::class);
     }
 }

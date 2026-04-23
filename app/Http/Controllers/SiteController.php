@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\HomeCard;
+use App\Models\HomeCarouselItem;
 use App\Models\MediaItem;
 use App\Models\Page;
 use App\Models\Service;
@@ -25,6 +27,8 @@ class SiteController extends Controller
                 'settings' => $this->settings(),
                 'homePage' => $homePage,
                 'services' => Service::query()->where('is_published', true)->orderBy('display_order')->get(),
+                'homeCarousel' => HomeCarouselItem::query()->where('is_active', true)->orderBy('display_order')->orderBy('id')->get(),
+                'homeCards' => HomeCard::query()->where('is_active', true)->orderBy('display_order')->orderBy('id')->get(),
                 'gallery' => MediaItem::query()
                     ->where('is_video', false)
                     ->orderBy('display_order')
@@ -66,18 +70,6 @@ class SiteController extends Controller
 
     private function settings(): array
     {
-        $heroImageUrl = Setting::getValue('hero_image_url');
-        if (! is_string($heroImageUrl) || trim($heroImageUrl) === '') {
-            $heroImageUrl = '/images/hero.jpg';
-        }
-        $heroImageUrl = trim((string) $heroImageUrl);
-        if (! str_starts_with($heroImageUrl, 'http') && ! str_starts_with($heroImageUrl, '/')) {
-            $heroImageUrl = "/{$heroImageUrl}";
-        }
-        if (str_starts_with($heroImageUrl, '/') && ! file_exists(public_path(ltrim($heroImageUrl, '/')))) {
-            $heroImageUrl = '/images/hero.jpg';
-        }
-
         return [
             'company_name' => Setting::getValue('company_name', 'Felestrino Solucoes'),
             'tagline' => Setting::getValue('tagline', 'Tecnologia para agua e irrigacao'),
@@ -85,9 +77,6 @@ class SiteController extends Controller
             'email' => Setting::getValue('email'),
             'address' => Setting::getValue('address'),
             'about' => Setting::getValue('about'),
-            'hero_title' => Setting::getValue('hero_title', 'Solucoes inteligentes para irrigacao e pivos'),
-            'hero_subtitle' => Setting::getValue('hero_subtitle', 'Controle e monitoramento em tempo real para sistemas hidricos'),
-            'hero_image_url' => $heroImageUrl,
             'seo_title' => Setting::getValue('seo_title'),
             'seo_description' => Setting::getValue('seo_description'),
         ];
