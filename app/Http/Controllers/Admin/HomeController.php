@@ -1,0 +1,488 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\HomeCard;
+use App\Models\HomeCarouselItem;
+use App\Models\HomeContentAudit;
+use App\Models\Setting;
+use App\Support\SiteCache;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+
+class HomeController extends Controller
+{
+    public function edit(): View
+    {
+        $settings = Setting::query()->whereIn('key', $this->keys())->pluck('value', 'key');
+
+        return view('admin.home.edit', [
+            'settings' => $settings,
+            'carouselItems' => HomeCarouselItem::query()->orderBy('display_order')->orderBy('id')->get(),
+            'cards' => HomeCard::query()->orderBy('display_order')->orderBy('id')->get(),
+            'audits' => HomeContentAudit::query()->with('user')->latest()->limit(30)->get(),
+        ]);
+    }
+
+    public function update(Request $request): RedirectResponse|JsonResponse
+    {
+        $rules = [
+            'company_name' => ['sometimes', 'required', 'string', 'max:150'],
+            'tagline' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:40'],
+            'email' => ['sometimes', 'nullable', 'email', 'max:150'],
+            'address' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'about' => ['sometimes', 'nullable', 'string'],
+            'seo_title' => ['sometimes', 'nullable', 'string', 'max:160'],
+            'seo_description' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ];
+
+        $payload = $request->validate($rules);
+
+        $changes = [];
+        foreach ($payload as $key => $value) {
+            if (! in_array($key, $this->keys(), true)) {
+                continue;
+            }
+
+            if (is_string($value) && trim($value) === '') {
+                $value = null;
+            }
+
+            $before = Setting::getValue($key);
+
+            Setting::query()->updateOrCreate(['key' => $key], ['value' => $value]);
+            Cache::forget("setting:{$key}");
+
+            if ($before != $value) {
+                $changes[$key] = ['old' => $before, 'new' => $value];
+            }
+        }
+
+        if ($changes !== []) {
+            $this->audit($request, 'settings', null, 'updated', $changes);
+            SiteCache::bump();
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return redirect()->route('admin.home.edit')->with('status', 'Home atualizada com sucesso.');
+    }
+
+    public function carouselStore(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'file' => ['required', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            'title' => ['nullable', 'string', 'max:100'],
+            'subtitle' => ['nullable', 'string', 'max:255'],
+            'link_url' => ['nullable', 'string', 'url', 'max:2048', 'starts_with:http://,https://'],
+            'button_text' => ['nullable', 'string', 'max:80'],
+            'button_url' => ['nullable', 'string', 'max:2048'],
+        ]);
+
+        /** @var UploadedFile $file */
+        $file = $payload['file'];
+        $path = $this->storeOptimizedImage($file);
+
+        $nextOrder = (int) (HomeCarouselItem::query()->max('display_order') ?? 0) + 1;
+
+        $item = HomeCarouselItem::query()->create([
+            'title' => $payload['title'] ?? null,
+            'subtitle' => $payload['subtitle'] ?? null,
+            'link_url' => $payload['link_url'] ?? null,
+            'button_text' => $payload['button_text'] ?? null,
+            'button_url' => $payload['button_url'] ?? null,
+            'image_path' => $path,
+            'display_order' => $nextOrder,
+            'is_active' => true,
+        ]);
+
+        $this->audit($request, 'carousel', $item->id, 'created', [
+            'title' => ['old' => null, 'new' => $item->title],
+            'subtitle' => ['old' => null, 'new' => $item->subtitle],
+            'link_url' => ['old' => null, 'new' => $item->link_url],
+            'button_text' => ['old' => null, 'new' => $item->button_text],
+            'button_url' => ['old' => null, 'new' => $item->button_url],
+            'image_path' => ['old' => null, 'new' => $item->image_path],
+            'display_order' => ['old' => null, 'new' => $item->display_order],
+        ]);
+
+        SiteCache::bump();
+
+        return response()->json([
+            'ok' => true,
+            'item' => [
+                'id' => $item->id,
+                'title' => $item->title,
+                'subtitle' => $item->subtitle,
+                'link_url' => $item->link_url,
+                'button_text' => $item->button_text,
+                'button_url' => $item->button_url,
+                'image_url' => $this->imageUrl($item->image_path),
+                'display_order' => $item->display_order,
+                'is_active' => $item->is_active,
+            ],
+        ]);
+    }
+
+    public function carouselUpdate(Request $request, HomeCarouselItem $item): JsonResponse
+    {
+        $payload = $request->validate([
+            'title' => ['nullable', 'string', 'max:100'],
+            'subtitle' => ['nullable', 'string', 'max:255'],
+            'link_url' => ['nullable', 'string', 'url', 'max:2048', 'starts_with:http://,https://'],
+            'button_text' => ['nullable', 'string', 'max:80'],
+            'button_url' => ['nullable', 'string', 'max:2048'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $before = $item->only(['title', 'subtitle', 'link_url', 'button_text', 'button_url', 'is_active']);
+
+        $item->update([
+            'title' => $payload['title'] ?? null,
+            'subtitle' => $payload['subtitle'] ?? null,
+            'link_url' => $payload['link_url'] ?? null,
+            'button_text' => $payload['button_text'] ?? null,
+            'button_url' => $payload['button_url'] ?? null,
+            'is_active' => array_key_exists('is_active', $payload) ? (bool) $payload['is_active'] : $item->is_active,
+        ]);
+
+        $after = $item->only(['title', 'subtitle', 'link_url', 'button_text', 'button_url', 'is_active']);
+        $changes = [];
+        foreach ($after as $key => $newValue) {
+            $oldValue = $before[$key] ?? null;
+            if ($oldValue != $newValue) {
+                $changes[$key] = ['old' => $oldValue, 'new' => $newValue];
+            }
+        }
+
+        if ($changes !== []) {
+            $this->audit($request, 'carousel', $item->id, 'updated', $changes);
+            SiteCache::bump();
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function carouselDestroy(Request $request, HomeCarouselItem $item): JsonResponse
+    {
+        $this->audit($request, 'carousel', $item->id, 'deleted', [
+            'image_path' => ['old' => $item->image_path, 'new' => null],
+            'title' => ['old' => $item->title, 'new' => null],
+            'subtitle' => ['old' => $item->subtitle, 'new' => null],
+            'link_url' => ['old' => $item->link_url, 'new' => null],
+            'button_text' => ['old' => $item->button_text, 'new' => null],
+            'button_url' => ['old' => $item->button_url, 'new' => null],
+        ]);
+
+        $this->deleteImage($item->image_path);
+        $item->delete();
+
+        SiteCache::bump();
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function carouselReorder(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $ids = array_values(array_unique($payload['ids']));
+        $existing = HomeCarouselItem::query()->whereIn('id', $ids)->pluck('id')->all();
+        sort($existing);
+        $idsSorted = $ids;
+        sort($idsSorted);
+        if ($existing !== $idsSorted) {
+            return response()->json(['ok' => false], 422);
+        }
+
+        DB::transaction(function () use ($ids) {
+            foreach ($ids as $index => $id) {
+                HomeCarouselItem::query()->where('id', $id)->update(['display_order' => $index]);
+            }
+        });
+
+        $this->audit($request, 'carousel', null, 'reordered', ['ids' => $ids]);
+        SiteCache::bump();
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function cardStore(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'title' => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string'],
+            'icon' => ['nullable', 'string', 'max:60'],
+            'link_url' => ['nullable', 'string', 'url', 'max:2048', 'starts_with:http://,https://'],
+        ]);
+
+        $nextOrder = (int) (HomeCard::query()->max('display_order') ?? 0) + 1;
+
+        $card = HomeCard::query()->create([
+            'title' => $payload['title'],
+            'description' => $payload['description'] ?? null,
+            'icon' => $payload['icon'] ?? null,
+            'link_url' => $payload['link_url'] ?? null,
+            'display_order' => $nextOrder,
+            'is_active' => true,
+        ]);
+
+        $this->audit($request, 'card', $card->id, 'created', [
+            'title' => ['old' => null, 'new' => $card->title],
+            'description' => ['old' => null, 'new' => $card->description],
+            'icon' => ['old' => null, 'new' => $card->icon],
+            'link_url' => ['old' => null, 'new' => $card->link_url],
+            'display_order' => ['old' => null, 'new' => $card->display_order],
+        ]);
+
+        SiteCache::bump();
+
+        return response()->json([
+            'ok' => true,
+            'card' => [
+                'id' => $card->id,
+                'title' => $card->title,
+                'description' => $card->description,
+                'icon' => $card->icon,
+                'link_url' => $card->link_url,
+                'display_order' => $card->display_order,
+                'is_active' => $card->is_active,
+            ],
+        ]);
+    }
+
+    public function cardUpdate(Request $request, HomeCard $card): JsonResponse
+    {
+        $payload = $request->validate([
+            'title' => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string'],
+            'icon' => ['nullable', 'string', 'max:60'],
+            'link_url' => ['nullable', 'string', 'url', 'max:2048', 'starts_with:http://,https://'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $before = $card->only(['title', 'description', 'icon', 'link_url', 'is_active']);
+
+        $card->update([
+            'title' => $payload['title'],
+            'description' => $payload['description'] ?? null,
+            'icon' => $payload['icon'] ?? null,
+            'link_url' => $payload['link_url'] ?? null,
+            'is_active' => array_key_exists('is_active', $payload) ? (bool) $payload['is_active'] : $card->is_active,
+        ]);
+
+        $after = $card->only(['title', 'description', 'icon', 'link_url', 'is_active']);
+        $changes = [];
+        foreach ($after as $key => $newValue) {
+            $oldValue = $before[$key] ?? null;
+            if ($oldValue != $newValue) {
+                $changes[$key] = ['old' => $oldValue, 'new' => $newValue];
+            }
+        }
+
+        if ($changes !== []) {
+            $this->audit($request, 'card', $card->id, 'updated', $changes);
+            SiteCache::bump();
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function cardDestroy(Request $request, HomeCard $card): JsonResponse
+    {
+        $this->audit($request, 'card', $card->id, 'deleted', [
+            'title' => ['old' => $card->title, 'new' => null],
+        ]);
+
+        $card->delete();
+        SiteCache::bump();
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function cardReorder(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $ids = array_values(array_unique($payload['ids']));
+        $existing = HomeCard::query()->whereIn('id', $ids)->pluck('id')->all();
+        sort($existing);
+        $idsSorted = $ids;
+        sort($idsSorted);
+        if ($existing !== $idsSorted) {
+            return response()->json(['ok' => false], 422);
+        }
+
+        DB::transaction(function () use ($ids) {
+            foreach ($ids as $index => $id) {
+                HomeCard::query()->where('id', $id)->update(['display_order' => $index]);
+            }
+        });
+
+        $this->audit($request, 'card', null, 'reordered', ['ids' => $ids]);
+        SiteCache::bump();
+
+        return response()->json(['ok' => true]);
+    }
+
+    private function storeOptimizedImage(UploadedFile $file): string
+    {
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+        if (! in_array($extension, $allowed, true)) {
+            $extension = 'jpg';
+        }
+
+        $gdAvailable = function_exists('imagecreatefromjpeg')
+            && function_exists('imagescale')
+            && function_exists('imagewebp');
+
+        $relativeDir = 'images/banners';
+        $absoluteDir = public_path($relativeDir);
+        if (! is_dir($absoluteDir)) {
+            @mkdir($absoluteDir, 0755, true);
+        }
+
+        $baseName = pathinfo((string) $file->getClientOriginalName(), PATHINFO_FILENAME);
+        $slug = Str::slug($baseName);
+        if ($slug === '') {
+            $slug = 'banner';
+        }
+        $unique = Str::lower(Str::random(10));
+
+        if (! $gdAvailable) {
+            $fileName = "{$slug}-{$unique}.{$extension}";
+            $file->move($absoluteDir, $fileName);
+
+            return $relativeDir.'/'.$fileName;
+        }
+
+        $tmpPath = $file->getRealPath();
+        if (! is_string($tmpPath) || $tmpPath === '') {
+            $fileName = "{$slug}-{$unique}.{$extension}";
+            $file->move($absoluteDir, $fileName);
+
+            return $relativeDir.'/'.$fileName;
+        }
+
+        $info = @getimagesize($tmpPath);
+        if (! is_array($info) || ! isset($info[0], $info[1], $info['mime'])) {
+            $fileName = "{$slug}-{$unique}.{$extension}";
+            $file->move($absoluteDir, $fileName);
+
+            return $relativeDir.'/'.$fileName;
+        }
+
+        $mime = (string) $info['mime'];
+        $src = null;
+        if ($mime === 'image/jpeg') {
+            $src = @imagecreatefromjpeg($tmpPath);
+        } elseif ($mime === 'image/png') {
+            $src = @imagecreatefrompng($tmpPath);
+        } elseif ($mime === 'image/webp') {
+            $src = @imagecreatefromwebp($tmpPath);
+        }
+
+        if (! $src) {
+            $fileName = "{$slug}-{$unique}.{$extension}";
+            $file->move($absoluteDir, $fileName);
+
+            return $relativeDir.'/'.$fileName;
+        }
+
+        $maxWidth = 1920;
+        $width = (int) $info[0];
+        $targetWidth = $width > $maxWidth ? $maxWidth : $width;
+        $scaled = $src;
+        if ($targetWidth !== $width) {
+            $scaled = imagescale($src, $targetWidth);
+        }
+
+        $fileName = "{$slug}-{$unique}.webp";
+        $targetFullPath = $absoluteDir.DIRECTORY_SEPARATOR.$fileName;
+
+        $ok = @imagewebp($scaled, $targetFullPath, 82);
+        if (is_resource($src) || (is_object($src) && get_class($src) === 'GdImage')) {
+            @imagedestroy($src);
+        }
+        if ((is_resource($scaled) || (is_object($scaled) && get_class($scaled) === 'GdImage')) && $scaled !== $src) {
+            @imagedestroy($scaled);
+        }
+
+        if (! $ok) {
+            $fallbackName = "{$slug}-{$unique}.{$extension}";
+            $file->move($absoluteDir, $fallbackName);
+
+            return $relativeDir.'/'.$fallbackName;
+        }
+
+        return $relativeDir.'/'.$fileName;
+    }
+
+    private function imageUrl(string $path): string
+    {
+        if (str_starts_with($path, 'images/')) {
+            return asset($path);
+        }
+
+        return asset('storage/'.$path);
+    }
+
+    private function deleteImage(string $path): void
+    {
+        if (str_starts_with($path, 'images/')) {
+            $fullPath = public_path($path);
+            if (is_file($fullPath)) {
+                @unlink($fullPath);
+            }
+
+            return;
+        }
+
+        Storage::disk('public')->delete($path);
+    }
+
+    private function audit(Request $request, string $entityType, ?int $entityId, string $action, array $changes): void
+    {
+        HomeContentAudit::query()->create([
+            'user_id' => $request->user()?->id,
+            'entity_type' => $entityType,
+            'entity_id' => $entityId,
+            'action' => $action,
+            'changes' => $changes,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+    }
+
+    private function keys(): array
+    {
+        return [
+            'company_name',
+            'tagline',
+            'phone',
+            'email',
+            'address',
+            'about',
+            'seo_title',
+            'seo_description',
+        ];
+    }
+}
