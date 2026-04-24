@@ -73,10 +73,10 @@ class HomeController extends Controller
         }
 
         if ($request->expectsJson()) {
-            return response()->json(['ok' => true]);
+            return response()->json(['ok' => true, 'message' => 'Página inicial atualizada com sucesso.']);
         }
 
-        return redirect()->route('admin.home.edit')->with('status', 'Home atualizada com sucesso.');
+        return redirect()->route('admin.home.edit')->with('status', 'Página inicial atualizada com sucesso.');
     }
 
     public function carouselStore(Request $request): JsonResponse
@@ -92,7 +92,7 @@ class HomeController extends Controller
 
         /** @var UploadedFile $file */
         $file = $payload['file'];
-        $path = $this->storeOptimizedImage($file);
+        $path = $this->storeOptimizedImage($file, 'imagens/banners');
 
         $nextOrder = (int) (HomeCarouselItem::query()->max('display_order') ?? 0) + 1;
 
@@ -121,6 +121,7 @@ class HomeController extends Controller
 
         return response()->json([
             'ok' => true,
+            'message' => 'Imagem adicionada ao carrossel com sucesso.',
             'item' => [
                 'id' => $item->id,
                 'title' => $item->title,
@@ -171,7 +172,7 @@ class HomeController extends Controller
             SiteCache::bump();
         }
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true, 'message' => 'Item do carrossel atualizado com sucesso.']);
     }
 
     public function carouselDestroy(Request $request, HomeCarouselItem $item): JsonResponse
@@ -190,7 +191,7 @@ class HomeController extends Controller
 
         SiteCache::bump();
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true, 'message' => 'Item do carrossel removido com sucesso.']);
     }
 
     public function carouselReorder(Request $request): JsonResponse
@@ -206,7 +207,7 @@ class HomeController extends Controller
         $idsSorted = $ids;
         sort($idsSorted);
         if ($existing !== $idsSorted) {
-            return response()->json(['ok' => false], 422);
+            return response()->json(['ok' => false, 'message' => 'Não foi possível reordenar os itens do carrossel.'], 422);
         }
 
         DB::transaction(function () use ($ids) {
@@ -218,7 +219,7 @@ class HomeController extends Controller
         $this->audit($request, 'carousel', null, 'reordered', ['ids' => $ids]);
         SiteCache::bump();
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true, 'message' => 'Carrossel reordenado com sucesso.']);
     }
 
     public function cardStore(Request $request): JsonResponse
@@ -226,6 +227,12 @@ class HomeController extends Controller
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
+            'detail_enabled' => ['nullable', 'boolean'],
+            'detail_title' => ['nullable', 'string', 'max:140'],
+            'detail_subtitle' => ['nullable', 'string', 'max:255'],
+            'detail_body' => ['nullable', 'string'],
+            'detail_image_caption' => ['nullable', 'string', 'max:160'],
+            'detail_button_text' => ['nullable', 'string', 'max:80'],
             'icon' => ['nullable', 'string', 'max:60'],
             'link_url' => ['nullable', 'string', 'url', 'max:2048', 'starts_with:http://,https://'],
         ]);
@@ -235,6 +242,12 @@ class HomeController extends Controller
         $card = HomeCard::query()->create([
             'title' => $payload['title'],
             'description' => $payload['description'] ?? null,
+            'detail_enabled' => (bool) ($payload['detail_enabled'] ?? false),
+            'detail_title' => $payload['detail_title'] ?? null,
+            'detail_subtitle' => $payload['detail_subtitle'] ?? null,
+            'detail_body' => $payload['detail_body'] ?? null,
+            'detail_image_caption' => $payload['detail_image_caption'] ?? null,
+            'detail_button_text' => $payload['detail_button_text'] ?? null,
             'icon' => $payload['icon'] ?? null,
             'link_url' => $payload['link_url'] ?? null,
             'display_order' => $nextOrder,
@@ -244,6 +257,12 @@ class HomeController extends Controller
         $this->audit($request, 'card', $card->id, 'created', [
             'title' => ['old' => null, 'new' => $card->title],
             'description' => ['old' => null, 'new' => $card->description],
+            'detail_enabled' => ['old' => null, 'new' => $card->detail_enabled],
+            'detail_title' => ['old' => null, 'new' => $card->detail_title],
+            'detail_subtitle' => ['old' => null, 'new' => $card->detail_subtitle],
+            'detail_body' => ['old' => null, 'new' => $card->detail_body],
+            'detail_image_caption' => ['old' => null, 'new' => $card->detail_image_caption],
+            'detail_button_text' => ['old' => null, 'new' => $card->detail_button_text],
             'icon' => ['old' => null, 'new' => $card->icon],
             'link_url' => ['old' => null, 'new' => $card->link_url],
             'display_order' => ['old' => null, 'new' => $card->display_order],
@@ -253,10 +272,19 @@ class HomeController extends Controller
 
         return response()->json([
             'ok' => true,
+            'message' => 'Card criado com sucesso.',
             'card' => [
                 'id' => $card->id,
                 'title' => $card->title,
                 'description' => $card->description,
+                'detail_enabled' => $card->detail_enabled,
+                'detail_title' => $card->detail_title,
+                'detail_subtitle' => $card->detail_subtitle,
+                'detail_body' => $card->detail_body,
+                'detail_image_path' => $card->detail_image_path,
+                'detail_image_url' => $card->detail_image_path ? $this->imageUrl($card->detail_image_path) : null,
+                'detail_image_caption' => $card->detail_image_caption,
+                'detail_button_text' => $card->detail_button_text,
                 'icon' => $card->icon,
                 'link_url' => $card->link_url,
                 'display_order' => $card->display_order,
@@ -270,22 +298,62 @@ class HomeController extends Controller
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
+            'detail_enabled' => ['nullable', 'boolean'],
+            'detail_title' => ['nullable', 'string', 'max:140'],
+            'detail_subtitle' => ['nullable', 'string', 'max:255'],
+            'detail_body' => ['nullable', 'string'],
+            'detail_image_path' => ['nullable', 'string', 'max:2048'],
+            'detail_image_caption' => ['nullable', 'string', 'max:160'],
+            'detail_button_text' => ['nullable', 'string', 'max:80'],
             'icon' => ['nullable', 'string', 'max:60'],
             'link_url' => ['nullable', 'string', 'url', 'max:2048', 'starts_with:http://,https://'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $before = $card->only(['title', 'description', 'icon', 'link_url', 'is_active']);
+        $before = $card->only([
+            'title',
+            'description',
+            'detail_enabled',
+            'detail_title',
+            'detail_subtitle',
+            'detail_body',
+            'detail_image_path',
+            'detail_image_caption',
+            'detail_button_text',
+            'icon',
+            'link_url',
+            'is_active',
+        ]);
 
         $card->update([
             'title' => $payload['title'],
             'description' => $payload['description'] ?? null,
+            'detail_enabled' => array_key_exists('detail_enabled', $payload) ? (bool) $payload['detail_enabled'] : $card->detail_enabled,
+            'detail_title' => $payload['detail_title'] ?? null,
+            'detail_subtitle' => $payload['detail_subtitle'] ?? null,
+            'detail_body' => $payload['detail_body'] ?? null,
+            'detail_image_path' => $payload['detail_image_path'] ?? $card->detail_image_path,
+            'detail_image_caption' => $payload['detail_image_caption'] ?? null,
+            'detail_button_text' => $payload['detail_button_text'] ?? null,
             'icon' => $payload['icon'] ?? null,
             'link_url' => $payload['link_url'] ?? null,
             'is_active' => array_key_exists('is_active', $payload) ? (bool) $payload['is_active'] : $card->is_active,
         ]);
 
-        $after = $card->only(['title', 'description', 'icon', 'link_url', 'is_active']);
+        $after = $card->only([
+            'title',
+            'description',
+            'detail_enabled',
+            'detail_title',
+            'detail_subtitle',
+            'detail_body',
+            'detail_image_path',
+            'detail_image_caption',
+            'detail_button_text',
+            'icon',
+            'link_url',
+            'is_active',
+        ]);
         $changes = [];
         foreach ($after as $key => $newValue) {
             $oldValue = $before[$key] ?? null;
@@ -299,7 +367,7 @@ class HomeController extends Controller
             SiteCache::bump();
         }
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true, 'message' => 'Card atualizado com sucesso.']);
     }
 
     public function cardDestroy(Request $request, HomeCard $card): JsonResponse
@@ -308,10 +376,43 @@ class HomeController extends Controller
             'title' => ['old' => $card->title, 'new' => null],
         ]);
 
+        if (is_string($card->detail_image_path) && $card->detail_image_path !== '') {
+            $this->deleteImage($card->detail_image_path);
+        }
         $card->delete();
         SiteCache::bump();
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true, 'message' => 'Card removido com sucesso.']);
+    }
+
+    public function cardDetailImageStore(Request $request, HomeCard $card): JsonResponse
+    {
+        $payload = $request->validate([
+            'file' => ['required', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+        ]);
+
+        /** @var UploadedFile $file */
+        $file = $payload['file'];
+        $path = $this->storeOptimizedImage($file, 'imagens/cards');
+
+        $oldPath = $card->detail_image_path;
+        $card->update(['detail_image_path' => $path]);
+
+        if (is_string($oldPath) && $oldPath !== '' && $oldPath !== $path) {
+            $this->deleteImage($oldPath);
+        }
+
+        $this->audit($request, 'card', $card->id, 'updated', [
+            'detail_image_path' => ['old' => $oldPath, 'new' => $path],
+        ]);
+        SiteCache::bump();
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Imagem da descrição vinculada enviada com sucesso.',
+            'image_path' => $path,
+            'image_url' => $this->imageUrl($path),
+        ]);
     }
 
     public function cardReorder(Request $request): JsonResponse
@@ -327,7 +428,7 @@ class HomeController extends Controller
         $idsSorted = $ids;
         sort($idsSorted);
         if ($existing !== $idsSorted) {
-            return response()->json(['ok' => false], 422);
+            return response()->json(['ok' => false, 'message' => 'Não foi possível reordenar os cards.'], 422);
         }
 
         DB::transaction(function () use ($ids) {
@@ -339,10 +440,10 @@ class HomeController extends Controller
         $this->audit($request, 'card', null, 'reordered', ['ids' => $ids]);
         SiteCache::bump();
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true, 'message' => 'Cards reordenados com sucesso.']);
     }
 
-    private function storeOptimizedImage(UploadedFile $file): string
+    private function storeOptimizedImage(UploadedFile $file, string $relativeDir): string
     {
         $extension = strtolower((string) $file->getClientOriginalExtension());
         $allowed = ['jpg', 'jpeg', 'png', 'webp'];
@@ -354,7 +455,10 @@ class HomeController extends Controller
             && function_exists('imagescale')
             && function_exists('imagewebp');
 
-        $relativeDir = 'images/banners';
+        $relativeDir = trim($relativeDir, '/\\');
+        if ($relativeDir === '') {
+            $relativeDir = 'imagens/banners';
+        }
         $absoluteDir = public_path($relativeDir);
         if (! is_dir($absoluteDir)) {
             @mkdir($absoluteDir, 0755, true);
@@ -438,7 +542,7 @@ class HomeController extends Controller
 
     private function imageUrl(string $path): string
     {
-        if (str_starts_with($path, 'images/')) {
+        if (str_starts_with($path, 'imagens/') || str_starts_with($path, 'images/')) {
             return asset($path);
         }
 
@@ -447,7 +551,7 @@ class HomeController extends Controller
 
     private function deleteImage(string $path): void
     {
-        if (str_starts_with($path, 'images/')) {
+        if (str_starts_with($path, 'imagens/') || str_starts_with($path, 'images/')) {
             $fullPath = public_path($path);
             if (is_file($fullPath)) {
                 @unlink($fullPath);

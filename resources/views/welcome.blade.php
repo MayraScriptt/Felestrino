@@ -33,8 +33,132 @@
             color: #8a6b1f;
         }
 
+        .home-card__actions {
+            margin-top: .9rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: .55rem;
+        }
+
+        .home-card__more {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            border: 1px solid rgba(13, 27, 62, 0.14);
+            background: #fff;
+            color: #0d1b3e;
+            font-family: "Rajdhani", sans-serif;
+            font-size: .8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            text-decoration: none;
+            padding: .5rem 1rem;
+            transition: all .2s ease;
+        }
+
+        .home-card__more:hover {
+            border-color: rgba(184, 144, 42, 0.7);
+            background: #f8e8bf;
+            color: #0d1b3e;
+        }
+
+        .home-card-details {
+            display: grid;
+            gap: 0;
+            margin-top: 1.75rem;
+        }
+
+        .home-card-detail {
+            padding: clamp(2.4rem, 6vw, 4.2rem) 0;
+        }
+
+        .home-card-detail--light {
+            background: #f7f9fc;
+            color: #0d1b3e;
+        }
+
+        .home-card-detail--dark {
+            background: #0d1b3e;
+            color: #ffffff;
+        }
+
+        .home-card-detail__inner {
+            display: grid;
+            gap: 1.4rem;
+            align-items: center;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+
+        .home-card-detail__eyebrow {
+            font-family: "Rajdhani", sans-serif;
+            font-size: .78rem;
+            letter-spacing: .2em;
+            text-transform: uppercase;
+            margin-bottom: .35rem;
+            font-weight: 700;
+        }
+
+        .home-card-detail--light .home-card-detail__eyebrow {
+            color: #8a6b1f;
+        }
+
+        .home-card-detail--dark .home-card-detail__eyebrow {
+            color: #d4ab4a;
+        }
+
+        .home-card-detail__title {
+            font-family: "Bebas Neue", sans-serif;
+            letter-spacing: .05em;
+            line-height: 1;
+            font-size: clamp(1.9rem, 4.4vw, 3rem);
+            margin-bottom: .85rem;
+        }
+
+        .home-card-detail__subtitle {
+            font-family: "Rajdhani", sans-serif;
+            font-size: clamp(1.1rem, 2.2vw, 1.45rem);
+            line-height: 1.25;
+            margin-bottom: .95rem;
+        }
+
+        .home-card-detail__body {
+            white-space: pre-line;
+            line-height: 1.72;
+            font-size: 1rem;
+            max-width: 62ch;
+        }
+
+        .home-card-detail__media img {
+            width: 100%;
+            display: block;
+            border-radius: .8rem;
+            object-fit: cover;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            box-shadow: 0 12px 30px rgba(8, 17, 42, 0.22);
+        }
+
+        .home-card-detail--light .home-card-detail__media img {
+            border-color: rgba(13, 27, 62, 0.12);
+            box-shadow: 0 14px 28px rgba(13, 27, 62, 0.1);
+        }
+
+        .home-card-detail__caption {
+            margin-top: .4rem;
+            font-size: .8rem;
+            opacity: .74;
+        }
+
         .hero-carousel__scroll {
             border-color: rgba(212, 171, 74, .38);
+        }
+
+        .hero-carousel {
+            margin-top: var(--site-header-offset, 0px);
+            height: calc(100vh - var(--site-header-offset, 0px));
+            height: calc(100svh - var(--site-header-offset, 0px));
+            height: calc(100dvh - var(--site-header-offset, 0px));
         }
     </style>
 
@@ -42,7 +166,7 @@
         $resolveImageSrc = static function (?string $path): string {
             $path = is_string($path) ? trim($path) : '';
             if ($path === '') {
-                return asset('images/hero.jpg');
+                return asset('imagens/hero.jpg');
             }
             if (str_starts_with($path, 'http')) {
                 return $path;
@@ -50,7 +174,7 @@
             if (str_starts_with($path, '/')) {
                 return $path;
             }
-            if (str_starts_with($path, 'images/')) {
+            if (str_starts_with($path, 'imagens/') || str_starts_with($path, 'images/')) {
                 return asset($path);
             }
 
@@ -79,7 +203,7 @@
             }
         } else {
             $slides->push([
-                'src' => asset('images/hero.jpg'),
+                'src' => asset('imagens/hero.jpg'),
                 'title' => '',
                 'subtitle' => '',
                 'alt' => 'Banner',
@@ -116,6 +240,20 @@
         $initialButtonUrl = trim((string) ($slides[0]['button_url'] ?? ''));
         $initialButtonHref = $initialButtonUrl !== '' ? $initialButtonUrl : '#home-main';
         $hasHeroCopy = $initialTitle !== '' || $initialSubtitle !== '' || $initialButtonText !== '';
+
+        $detailCards = ($homeCards ?? collect())
+            ->filter(function ($card) {
+                if (! ($card->detail_enabled ?? false)) {
+                    return false;
+                }
+                $title = trim((string) ($card->detail_title ?? ''));
+                $subtitle = trim((string) ($card->detail_subtitle ?? ''));
+                $body = trim((string) ($card->detail_body ?? ''));
+                $image = trim((string) ($card->detail_image_path ?? ''));
+
+                return $title !== '' || $subtitle !== '' || $body !== '' || $image !== '';
+            })
+            ->values();
     @endphp
 
     <section class="hero-carousel" data-carousel="hero" aria-roledescription="carrossel">
@@ -200,29 +338,66 @@
                 <h2 class="section-title-v2" data-reveal data-reveal-delay="100">Cards Informativos</h2>
                 <div class="home-cards">
                     @foreach ($homeCards as $card)
+                        @php
+                            $hasDetailSection = $detailCards->contains(fn ($detailCard) => (int) $detailCard->id === (int) $card->id);
+                            $detailTarget = 'card-detail-'.$card->id;
+                            $detailButtonText = trim((string) ($card->detail_button_text ?? '')) !== '' ? trim((string) ($card->detail_button_text ?? '')) : 'Ver mais';
+                        @endphp
                         <article class="home-card" data-reveal data-reveal-delay="{{ 160 + ($loop->index * 90) }}">
-                            @if ($card->link_url)
-                                <a href="{{ $card->link_url }}" target="_blank" rel="noopener noreferrer" class="home-card__link">
-                                    @if ($card->icon)
-                                        <div class="home-card__icon">{{ $card->icon }}</div>
+                            @if ($card->icon)
+                                <div class="home-card__icon">{{ $card->icon }}</div>
+                            @endif
+                            <h2 class="home-card__title">{{ $card->title }}</h2>
+                            @if ($card->description)
+                                <p class="home-card__description">{{ $card->description }}</p>
+                            @endif
+                            @if ($hasDetailSection || $card->link_url)
+                                <div class="home-card__actions">
+                                    @if ($hasDetailSection)
+                                        <a href="#{{ $detailTarget }}" class="home-card__more" data-scroll-next>{{ $detailButtonText }}</a>
                                     @endif
-                                    <h2 class="home-card__title">{{ $card->title }}</h2>
-                                    @if ($card->description)
-                                        <p class="home-card__description">{{ $card->description }}</p>
+                                    @if ($card->link_url)
+                                        <a href="{{ $card->link_url }}" target="_blank" rel="noopener noreferrer" class="home-card__more">Acessar link</a>
                                     @endif
-                                </a>
-                            @else
-                                @if ($card->icon)
-                                    <div class="home-card__icon">{{ $card->icon }}</div>
-                                @endif
-                                <h2 class="home-card__title">{{ $card->title }}</h2>
-                                @if ($card->description)
-                                    <p class="home-card__description">{{ $card->description }}</p>
-                                @endif
+                                </div>
                             @endif
                         </article>
                     @endforeach
                 </div>
+            </section>
+        @endif
+
+        @if ($detailCards->isNotEmpty())
+            <section class="home-card-details">
+                @foreach ($detailCards as $detailCard)
+                    @php
+                        $themeClass = $loop->odd ? 'home-card-detail--light' : 'home-card-detail--dark';
+                        $imageSrc = trim((string) ($detailCard->detail_image_path ?? '')) !== '' ? $resolveImageSrc($detailCard->detail_image_path) : null;
+                        $detailTitle = trim((string) ($detailCard->detail_title ?? '')) !== '' ? $detailCard->detail_title : $detailCard->title;
+                    @endphp
+                    <article id="card-detail-{{ $detailCard->id }}" class="home-card-detail {{ $themeClass }}">
+                        <div class="container home-card-detail__inner">
+                            <div class="home-card-detail__copy">
+                                <div class="home-card-detail__eyebrow">Descricao do card</div>
+                                <h3 class="home-card-detail__title">{{ $detailTitle }}</h3>
+                                @if ($detailCard->detail_subtitle)
+                                    <p class="home-card-detail__subtitle">{{ $detailCard->detail_subtitle }}</p>
+                                @endif
+                                @if ($detailCard->detail_body)
+                                    <p class="home-card-detail__body">{{ $detailCard->detail_body }}</p>
+                                @endif
+                            </div>
+                            @if ($imageSrc)
+                                <figure class="home-card-detail__media">
+                                    <img src="{{ $imageSrc }}" alt="{{ $detailTitle }}" loading="lazy" decoding="async">
+                                    @if ($detailCard->detail_image_caption)
+                                        <figcaption class="home-card-detail__caption">{{ $detailCard->detail_image_caption }}</figcaption>
+                                    @endif
+                                </figure>
+                            @endif
+                        </div>
+                    </article>
+                @endforeach
             </section>
         @endif
     </div>

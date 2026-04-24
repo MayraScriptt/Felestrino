@@ -203,9 +203,6 @@
             align-items: center;
             justify-content: space-between;
             gap: .75rem;
-            position: sticky;
-            top: .75rem;
-            z-index: 10;
         }
 
         .admin-menu-btn {
@@ -736,7 +733,6 @@
                 </button>
                 <div class="admin-page-info">
                     <h1>{{ $title ?? 'Painel Administrativo' }}</h1>
-                    <p>Painel moderno, responsivo e otimizado para telas pequenas</p>
                 </div>
             </header>
 

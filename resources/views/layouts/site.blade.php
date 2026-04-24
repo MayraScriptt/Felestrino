@@ -21,7 +21,7 @@
         body.site-tone {
             font-family: "DM Sans", "Segoe UI", Roboto, Arial, sans-serif;
             color: #0d1b3e;
-            background: #f7f8fc;
+            background: #ffffff;
         }
 
         .site-tone .site-header {

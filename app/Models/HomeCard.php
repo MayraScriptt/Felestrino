@@ -12,6 +12,13 @@ class HomeCard extends Model
     protected $fillable = [
         'title',
         'description',
+        'detail_enabled',
+        'detail_title',
+        'detail_subtitle',
+        'detail_body',
+        'detail_image_path',
+        'detail_image_caption',
+        'detail_button_text',
         'icon',
         'link_url',
         'display_order',
@@ -22,6 +29,7 @@ class HomeCard extends Model
     {
         return [
             'is_active' => 'boolean',
+            'detail_enabled' => 'boolean',
         ];
     }
 }

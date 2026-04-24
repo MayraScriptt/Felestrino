@@ -11,6 +11,15 @@
 
     const getHeaderOffset = () => (header ? header.getBoundingClientRect().height : 0);
 
+    const setHeaderOffsetCssVar = () => {
+        try {
+            const value = `${Math.round(getHeaderOffset())}px`;
+            document.documentElement.style.setProperty('--site-header-offset', value);
+        } catch (e) {}
+    };
+    setHeaderOffsetCssVar();
+    window.addEventListener('resize', setHeaderOffsetCssVar, { passive: true });
+
     const scrollToElement = (element) => {
         if (!element) return;
         const headerOffset = getHeaderOffset();
@@ -164,7 +173,7 @@
                 heroPreviewSubtitle.textContent = subtitle;
             }
             if (heroPreviewButton instanceof HTMLAnchorElement) {
-                const defaultButtonText = heroPreviewButton.getAttribute('data-home-hero-button-default') || 'Ver conteudo';
+                const defaultButtonText = heroPreviewButton.getAttribute('data-home-hero-button-default') || 'Ver conteúdo';
                 const buttonText = buttonTextInput && buttonTextInput.value ? buttonTextInput.value : '';
                 const buttonUrl = buttonUrlInput && buttonUrlInput.value ? buttonUrlInput.value : '';
                 heroPreviewButton.textContent = buttonText || defaultButtonText;
@@ -199,7 +208,7 @@
                 setPreviewTitle('Banner principal');
                 if (heroPreviewSubtitle) heroPreviewSubtitle.textContent = '';
                 if (heroPreviewButton instanceof HTMLAnchorElement) {
-                    const defaultButtonText = heroPreviewButton.getAttribute('data-home-hero-button-default') || 'Ver conteudo';
+                    const defaultButtonText = heroPreviewButton.getAttribute('data-home-hero-button-default') || 'Ver conteúdo';
                     heroPreviewButton.textContent = defaultButtonText;
                     heroPreviewButton.href = '#home-main';
                 }
@@ -242,64 +251,69 @@
             }
         }, 200);
 
-        const makeDraggableList = (listEl, itemSelector, reorderUrl) => {
+        const updateOrderUi = (listEl, itemSelector) => {
             if (!listEl) return;
-            let dragged = null;
+            const items = Array.from(listEl.querySelectorAll(itemSelector)).filter((el) => el instanceof HTMLElement);
+            items.forEach((itemEl, index) => {
+                const label = itemEl.querySelector('[data-item-order]');
+                if (label) label.textContent = String(index + 1);
 
-            const handleDragStart = (event) => {
-                const item = event.currentTarget;
-                if (!(item instanceof HTMLElement)) return;
-                dragged = item;
-                item.classList.add('is-dragging');
-                try {
-                    event.dataTransfer.effectAllowed = 'move';
-                    event.dataTransfer.setData('text/plain', item.getAttribute('data-id') || '');
-                } catch (e) {}
-            };
+                const upBtn = itemEl.querySelector('[data-move-up]');
+                const downBtn = itemEl.querySelector('[data-move-down]');
+                if (upBtn instanceof HTMLButtonElement) upBtn.disabled = index === 0;
+                if (downBtn instanceof HTMLButtonElement) downBtn.disabled = index === items.length - 1;
+            });
+        };
 
-            const handleDragEnd = (event) => {
-                const item = event.currentTarget;
-                if (item instanceof HTMLElement) item.classList.remove('is-dragging');
-                dragged = null;
+        const makeOrderableList = (listEl, itemSelector, reorderUrl) => {
+            if (!listEl) return;
+
+            const moveItem = (itemEl, direction) => {
+                if (!itemEl) return;
+                if (direction === 'up') {
+                    const prev = itemEl.previousElementSibling;
+                    if (!prev) return;
+                    listEl.insertBefore(itemEl, prev);
+                } else {
+                    const next = itemEl.nextElementSibling;
+                    if (!next) return;
+                    listEl.insertBefore(next, itemEl);
+                }
+
+                updateOrderUi(listEl, itemSelector);
                 postReorder(reorderUrl, itemSelector);
             };
 
-            const handleDragOver = (event) => {
-                event.preventDefault();
-                const target = event.target;
-                if (!(target instanceof Element)) return;
-                const overItem = target.closest(itemSelector);
-                if (!overItem || !(overItem instanceof HTMLElement)) return;
-                if (!dragged || dragged === overItem) return;
+            const bindItem = (itemEl) => {
+                const upBtn = itemEl.querySelector('[data-move-up]');
+                const downBtn = itemEl.querySelector('[data-move-down]');
 
-                const rect = overItem.getBoundingClientRect();
-                const after = event.clientY > rect.top + rect.height / 2;
-                if (after) {
-                    if (overItem.nextSibling !== dragged) {
-                        listEl.insertBefore(dragged, overItem.nextSibling);
-                    }
-                } else {
-                    if (overItem !== dragged.nextSibling) {
-                        listEl.insertBefore(dragged, overItem);
-                    }
+                if (upBtn instanceof HTMLButtonElement) {
+                    upBtn.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        if (upBtn.disabled) return;
+                        moveItem(itemEl, 'up');
+                    });
+                }
+
+                if (downBtn instanceof HTMLButtonElement) {
+                    downBtn.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        if (downBtn.disabled) return;
+                        moveItem(itemEl, 'down');
+                    });
                 }
             };
 
-            listEl.addEventListener('dragover', handleDragOver);
+            updateOrderUi(listEl, itemSelector);
 
-            const bindItem = (item) => {
-                item.addEventListener('dragstart', handleDragStart);
-                item.addEventListener('dragend', handleDragEnd);
+            return {
+                bindItem,
+                refresh: () => updateOrderUi(listEl, itemSelector),
             };
-
-            Array.from(listEl.querySelectorAll(itemSelector)).forEach((item) => {
-                if (item instanceof HTMLElement) bindItem(item);
-            });
-
-            return { bindItem };
         };
 
-        const carouselDraggable = makeDraggableList(carouselList, '[data-carousel-item]', '/admin/home/carousel/reorder');
+        const carouselOrderable = makeOrderableList(carouselList, '[data-carousel-item]', '/admin/home/carousel/reorder');
 
         const bindCarouselItem = (itemEl) => {
             if (!itemEl) return;
@@ -382,6 +396,7 @@
                         const wasSelected = selectedCarouselId && selectedCarouselId === String(itemId);
                         itemEl.remove();
                         postReorder('/admin/home/carousel/reorder', '[data-carousel-item]');
+                        if (carouselOrderable && carouselOrderable.refresh) carouselOrderable.refresh();
                         if (wasSelected) {
                             selectedCarouselId = null;
                             selectCarouselByOffset(0);
@@ -393,11 +408,12 @@
                 });
             }
 
-            if (carouselDraggable && carouselDraggable.bindItem) carouselDraggable.bindItem(itemEl);
+            if (carouselOrderable && carouselOrderable.bindItem) carouselOrderable.bindItem(itemEl);
         };
 
         if (carouselList) {
             Array.from(carouselList.querySelectorAll('[data-carousel-item]')).forEach((el) => bindCarouselItem(el));
+            if (carouselOrderable && carouselOrderable.refresh) carouselOrderable.refresh();
         }
 
         if (carouselPrev) carouselPrev.addEventListener('click', () => selectCarouselByOffset(-1));
@@ -424,7 +440,6 @@
         const createCarouselItemEl = (item) => {
             const wrapper = document.createElement('div');
             wrapper.className = 'admin-home-item';
-            wrapper.setAttribute('draggable', 'true');
             wrapper.setAttribute('data-carousel-item', '');
             wrapper.setAttribute('data-id', String(item.id));
 
@@ -441,7 +456,7 @@
             fields.className = 'admin-home-fields';
 
             const titleLabel = document.createElement('label');
-            titleLabel.textContent = 'Titulo';
+            titleLabel.textContent = 'Título';
             const titleInput = document.createElement('input');
             titleInput.type = 'text';
             titleInput.maxLength = 100;
@@ -450,7 +465,7 @@
             titleLabel.appendChild(titleInput);
 
             const subtitleLabel = document.createElement('label');
-            subtitleLabel.textContent = 'Subtitulo';
+            subtitleLabel.textContent = 'Subtítulo';
             const subtitleInput = document.createElement('input');
             subtitleInput.type = 'text';
             subtitleInput.maxLength = 255;
@@ -469,7 +484,7 @@
             linkLabel.appendChild(linkInput);
 
             const buttonTextLabel = document.createElement('label');
-            buttonTextLabel.textContent = 'Texto do botao';
+            buttonTextLabel.textContent = 'Texto do botão';
             const buttonTextInput = document.createElement('input');
             buttonTextInput.type = 'text';
             buttonTextInput.maxLength = 80;
@@ -479,7 +494,7 @@
             buttonTextLabel.appendChild(buttonTextInput);
 
             const buttonUrlLabel = document.createElement('label');
-            buttonUrlLabel.textContent = 'Link do botao';
+            buttonUrlLabel.textContent = 'Link do botão';
             const buttonUrlInput = document.createElement('input');
             buttonUrlInput.type = 'url';
             buttonUrlInput.maxLength = 2048;
@@ -506,6 +521,32 @@
 
             const actions = document.createElement('div');
             actions.className = 'admin-home-actions';
+
+            const orderWrap = document.createElement('div');
+            orderWrap.className = 'admin-home-order';
+            const orderLabel = document.createElement('span');
+            orderLabel.className = 'admin-home-order__label';
+            orderLabel.setAttribute('data-item-order', '');
+            const orderButtons = document.createElement('div');
+            orderButtons.className = 'admin-home-order__buttons';
+            const upBtn = document.createElement('button');
+            upBtn.type = 'button';
+            upBtn.className = 'btn btn-secondary admin-home-order-btn';
+            upBtn.textContent = '↑';
+            upBtn.setAttribute('data-move-up', '');
+            upBtn.setAttribute('aria-label', 'Mover para cima');
+            const downBtn = document.createElement('button');
+            downBtn.type = 'button';
+            downBtn.className = 'btn btn-secondary admin-home-order-btn';
+            downBtn.textContent = '↓';
+            downBtn.setAttribute('data-move-down', '');
+            downBtn.setAttribute('aria-label', 'Mover para baixo');
+            orderButtons.appendChild(upBtn);
+            orderButtons.appendChild(downBtn);
+            orderWrap.appendChild(orderLabel);
+            orderWrap.appendChild(orderButtons);
+            actions.appendChild(orderWrap);
+
             const deleteBtn = document.createElement('button');
             deleteBtn.type = 'button';
             deleteBtn.className = 'btn btn-secondary';
@@ -540,6 +581,7 @@
                         carouselList.appendChild(el);
                         bindCarouselItem(el);
                         setSelectedCarouselItem(el);
+                        if (carouselOrderable && carouselOrderable.refresh) carouselOrderable.refresh();
                         carouselFile.value = '';
                     }
                     setIndicator('is-saved', 'Salvo');
@@ -551,7 +593,7 @@
 
         const cardsList = root.querySelector('[data-home-cards-list]');
         const cardAdd = root.querySelector('[data-home-card-add]');
-        const cardsDraggable = makeDraggableList(cardsList, '[data-card-item]', '/admin/home/cards/reorder');
+        const cardsOrderable = makeOrderableList(cardsList, '[data-card-item]', '/admin/home/cards/reorder');
 
         const bindCardItem = (itemEl) => {
             if (!itemEl) return;
@@ -562,6 +604,16 @@
 
             const titleInput = itemEl.querySelector('[data-card-title]');
             const descriptionInput = itemEl.querySelector('[data-card-description]');
+            const detailTitleInput = itemEl.querySelector('[data-card-detail-title]');
+            const detailSubtitleInput = itemEl.querySelector('[data-card-detail-subtitle]');
+            const detailBodyInput = itemEl.querySelector('[data-card-detail-body]');
+            const detailButtonTextInput = itemEl.querySelector('[data-card-detail-button-text]');
+            const detailImageCaptionInput = itemEl.querySelector('[data-card-detail-image-caption]');
+            const detailImageFileInput = itemEl.querySelector('[data-card-detail-image-file]');
+            const detailImagePickBtn = itemEl.querySelector('[data-card-detail-image-pick]');
+            const detailImagePreview = itemEl.querySelector('[data-card-detail-image-preview]');
+            const detailEnabledInput = itemEl.querySelector('[data-card-detail-enabled]');
+            const detailFieldsWrap = itemEl.querySelector('[data-card-detail-fields]');
             const iconInput = itemEl.querySelector('[data-card-icon]');
             const linkInput = itemEl.querySelector('[data-card-link]');
             const activeInput = itemEl.querySelector('[data-card-active]');
@@ -581,6 +633,13 @@
                         body: JSON.stringify({
                             title: titleInput ? titleInput.value : '',
                             description: descriptionInput ? descriptionInput.value : '',
+                            detail_enabled: detailEnabledInput ? !!detailEnabledInput.checked : false,
+                            detail_title: detailTitleInput ? detailTitleInput.value : '',
+                            detail_subtitle: detailSubtitleInput ? detailSubtitleInput.value : '',
+                            detail_body: detailBodyInput ? detailBodyInput.value : '',
+                            detail_image_path: itemEl.getAttribute('data-detail-image-path') || '',
+                            detail_image_caption: detailImageCaptionInput ? detailImageCaptionInput.value : '',
+                            detail_button_text: detailButtonTextInput ? detailButtonTextInput.value : '',
                             icon: iconInput ? iconInput.value : '',
                             link_url: linkInput ? linkInput.value : '',
                             is_active: activeInput ? !!activeInput.checked : true,
@@ -594,9 +653,75 @@
 
             if (titleInput) titleInput.addEventListener('input', saveCard);
             if (descriptionInput) descriptionInput.addEventListener('input', saveCard);
+            if (detailTitleInput) detailTitleInput.addEventListener('input', saveCard);
+            if (detailSubtitleInput) detailSubtitleInput.addEventListener('input', saveCard);
+            if (detailBodyInput) detailBodyInput.addEventListener('input', saveCard);
+            if (detailButtonTextInput) detailButtonTextInput.addEventListener('input', saveCard);
+            if (detailImageCaptionInput) detailImageCaptionInput.addEventListener('input', saveCard);
             if (iconInput) iconInput.addEventListener('input', saveCard);
             if (linkInput) linkInput.addEventListener('input', saveCard);
             if (activeInput) activeInput.addEventListener('change', saveCard);
+            if (detailEnabledInput instanceof HTMLInputElement) {
+                detailEnabledInput.addEventListener('change', () => {
+                    if (detailFieldsWrap instanceof HTMLElement) {
+                        detailFieldsWrap.hidden = !detailEnabledInput.checked;
+                    }
+                    saveCard();
+                });
+            }
+
+            const uploadDetailImage = async (file) => {
+                if (!csrfToken || !file) return;
+                const form = new FormData();
+                form.append('file', file);
+
+                setIndicator('is-saving', 'Enviando…');
+                try {
+                    const json = await fetchJson(`/admin/home/cards/${cardId}/detail-image`, {
+                        method: 'POST',
+                        headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                        body: form,
+                    });
+
+                    const imagePath = json && typeof json.image_path === 'string' ? json.image_path : '';
+                    const imageUrl = json && typeof json.image_url === 'string' ? json.image_url : '';
+                    itemEl.setAttribute('data-detail-image-path', imagePath);
+                    if (detailImagePreview instanceof HTMLImageElement && imageUrl) {
+                        detailImagePreview.src = imageUrl;
+                    }
+                    if (detailImageFileInput instanceof HTMLInputElement) {
+                        detailImageFileInput.value = '';
+                    }
+                    setIndicator('is-saved', 'Salvo');
+                } catch (e) {
+                    setIndicator('is-error', 'Erro ao enviar');
+                }
+            };
+
+            if (detailImagePickBtn instanceof HTMLButtonElement && detailImageFileInput instanceof HTMLInputElement) {
+                detailImagePickBtn.addEventListener('click', () => {
+                    detailImageFileInput.click();
+                });
+            }
+
+            if (detailImageFileInput instanceof HTMLInputElement) {
+                detailImageFileInput.addEventListener('change', async () => {
+                    if (!detailImageFileInput.files || detailImageFileInput.files.length === 0) return;
+                    const file = detailImageFileInput.files[0];
+                    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+                    if (!validTypes.includes(file.type)) {
+                        setIndicator('is-error', 'Formato inválido');
+                        detailImageFileInput.value = '';
+                        return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                        setIndicator('is-error', 'Arquivo acima de 5MB');
+                        detailImageFileInput.value = '';
+                        return;
+                    }
+                    await uploadDetailImage(file);
+                });
+            }
 
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', async () => {
@@ -610,6 +735,7 @@
                         });
                         itemEl.remove();
                         postReorder('/admin/home/cards/reorder', '[data-card-item]');
+                        if (cardsOrderable && cardsOrderable.refresh) cardsOrderable.refresh();
                         setIndicator('is-saved', 'Salvo');
                     } catch (e) {
                         setIndicator('is-error', 'Erro ao salvar');
@@ -617,19 +743,20 @@
                 });
             }
 
-            if (cardsDraggable && cardsDraggable.bindItem) cardsDraggable.bindItem(itemEl);
+            if (cardsOrderable && cardsOrderable.bindItem) cardsOrderable.bindItem(itemEl);
         };
 
         if (cardsList) {
             Array.from(cardsList.querySelectorAll('[data-card-item]')).forEach((el) => bindCardItem(el));
+            if (cardsOrderable && cardsOrderable.refresh) cardsOrderable.refresh();
         }
 
         const createCardEl = (card) => {
             const wrapper = document.createElement('div');
             wrapper.className = 'admin-home-item';
-            wrapper.setAttribute('draggable', 'true');
             wrapper.setAttribute('data-card-item', '');
             wrapper.setAttribute('data-id', String(card.id));
+            wrapper.setAttribute('data-detail-image-path', card.detail_image_path || '');
 
             const spacer = document.createElement('div');
             spacer.className = 'admin-home-thumb admin-home-thumb--placeholder';
@@ -638,7 +765,7 @@
             fields.className = 'admin-home-fields';
 
             const titleLabel = document.createElement('label');
-            titleLabel.textContent = 'Titulo';
+            titleLabel.textContent = 'Título';
             const titleInput = document.createElement('input');
             titleInput.type = 'text';
             titleInput.maxLength = 100;
@@ -647,12 +774,101 @@
             titleLabel.appendChild(titleInput);
 
             const descLabel = document.createElement('label');
-            descLabel.textContent = 'Descricao';
+            descLabel.textContent = 'Descrição curta (no quadrado)';
             const desc = document.createElement('textarea');
             desc.rows = 3;
             desc.value = card.description || '';
             desc.setAttribute('data-card-description', '');
             descLabel.appendChild(desc);
+
+            const detailTitleLabel = document.createElement('label');
+            detailTitleLabel.textContent = 'Título da descrição detalhada';
+            const detailTitleInput = document.createElement('input');
+            detailTitleInput.type = 'text';
+            detailTitleInput.maxLength = 140;
+            detailTitleInput.value = card.detail_title || '';
+            detailTitleInput.placeholder = 'Ex.: Compromisso com a evolucao conjunta';
+            detailTitleInput.setAttribute('data-card-detail-title', '');
+            detailTitleLabel.appendChild(detailTitleInput);
+
+            const detailSubtitleLabel = document.createElement('label');
+            detailSubtitleLabel.textContent = 'Subtítulo da descrição detalhada';
+            const detailSubtitleInput = document.createElement('input');
+            detailSubtitleInput.type = 'text';
+            detailSubtitleInput.maxLength = 255;
+            detailSubtitleInput.value = card.detail_subtitle || '';
+            detailSubtitleInput.placeholder = 'Texto complementar do bloco';
+            detailSubtitleInput.setAttribute('data-card-detail-subtitle', '');
+            detailSubtitleLabel.appendChild(detailSubtitleInput);
+
+            const detailBodyLabel = document.createElement('label');
+            detailBodyLabel.textContent = 'Texto da descricao detalhada';
+            const detailBody = document.createElement('textarea');
+            detailBody.rows = 6;
+            detailBody.value = card.detail_body || '';
+            detailBody.setAttribute('data-card-detail-body', '');
+            detailBodyLabel.appendChild(detailBody);
+
+            const detailButtonTextLabel = document.createElement('label');
+            detailButtonTextLabel.textContent = 'Texto do botão "Ver mais"';
+            const detailButtonTextInput = document.createElement('input');
+            detailButtonTextInput.type = 'text';
+            detailButtonTextInput.maxLength = 80;
+            detailButtonTextInput.value = card.detail_button_text || '';
+            detailButtonTextInput.placeholder = 'Ex.: Ver mais';
+            detailButtonTextInput.setAttribute('data-card-detail-button-text', '');
+            detailButtonTextLabel.appendChild(detailButtonTextInput);
+
+            const detailEnabledWrap = document.createElement('label');
+            detailEnabledWrap.className = 'checkbox-line';
+            const detailEnabledInput = document.createElement('input');
+            detailEnabledInput.type = 'checkbox';
+            detailEnabledInput.checked = !!card.detail_enabled;
+            detailEnabledInput.setAttribute('data-card-detail-enabled', '');
+            detailEnabledWrap.appendChild(detailEnabledInput);
+            detailEnabledWrap.appendChild(document.createTextNode(' Ativar descrição vinculada'));
+
+            const detailMediaWrap = document.createElement('div');
+            detailMediaWrap.className = 'admin-card-detail-media';
+
+            const detailImagePreview = document.createElement('img');
+            detailImagePreview.className = 'admin-card-detail-media__preview';
+            detailImagePreview.alt = '';
+            detailImagePreview.setAttribute('data-card-detail-image-preview', '');
+            detailImagePreview.src = card.detail_image_url || '/images/hero.jpg';
+
+            const detailMediaActions = document.createElement('div');
+            detailMediaActions.className = 'admin-card-detail-media__actions';
+
+            const detailImageFile = document.createElement('input');
+            detailImageFile.type = 'file';
+            detailImageFile.accept = '.jpg,.jpeg,.png,.webp';
+            detailImageFile.setAttribute('data-card-detail-image-file', '');
+
+            detailImageFile.className = 'admin-file-input';
+
+            const detailImagePick = document.createElement('button');
+            detailImagePick.type = 'button';
+            detailImagePick.className = 'admin-file-trigger';
+            detailImagePick.textContent = 'Selecionar imagem';
+            detailImagePick.setAttribute('data-card-detail-image-pick', '');
+
+            detailMediaActions.appendChild(detailImageFile);
+            detailMediaActions.appendChild(detailImagePick);
+
+            const detailImageCaptionLabel = document.createElement('label');
+            detailImageCaptionLabel.textContent = 'Legenda da imagem';
+            const detailImageCaptionInput = document.createElement('input');
+            detailImageCaptionInput.type = 'text';
+            detailImageCaptionInput.maxLength = 160;
+            detailImageCaptionInput.value = card.detail_image_caption || '';
+            detailImageCaptionInput.placeholder = 'Ex.: Foto: Equipe em campo';
+            detailImageCaptionInput.setAttribute('data-card-detail-image-caption', '');
+            detailImageCaptionLabel.appendChild(detailImageCaptionInput);
+
+            detailMediaWrap.appendChild(detailImagePreview);
+            detailMediaWrap.appendChild(detailMediaActions);
+            detailMediaWrap.appendChild(detailImageCaptionLabel);
 
             const iconLabel = document.createElement('label');
             iconLabel.textContent = 'Icone (texto)';
@@ -665,7 +881,7 @@
             iconLabel.appendChild(icon);
 
             const linkLabel = document.createElement('label');
-            linkLabel.textContent = 'Link';
+            linkLabel.textContent = 'Link externo opcional';
             const link = document.createElement('input');
             link.type = 'url';
             link.maxLength = 2048;
@@ -681,16 +897,81 @@
             active.checked = !!card.is_active;
             active.setAttribute('data-card-active', '');
             activeLabel.appendChild(active);
-            activeLabel.appendChild(document.createTextNode(' Ativo'));
+            activeLabel.appendChild(document.createTextNode(' Card ativo'));
 
-            fields.appendChild(titleLabel);
-            fields.appendChild(descLabel);
-            fields.appendChild(iconLabel);
-            fields.appendChild(linkLabel);
-            fields.appendChild(activeLabel);
+            const cardEditor = document.createElement('div');
+            cardEditor.className = 'admin-card-editor';
+
+            const basicBlock = document.createElement('section');
+            basicBlock.className = 'admin-card-block';
+            const basicHead = document.createElement('div');
+            basicHead.className = 'admin-card-block__head';
+            basicHead.textContent = 'Dados do card';
+            basicBlock.appendChild(basicHead);
+            basicBlock.appendChild(titleLabel);
+            basicBlock.appendChild(descLabel);
+            basicBlock.appendChild(iconLabel);
+            basicBlock.appendChild(linkLabel);
+            basicBlock.appendChild(activeLabel);
+
+            const detailBlock = document.createElement('section');
+            detailBlock.className = 'admin-card-block';
+            const detailHead = document.createElement('div');
+            detailHead.className = 'admin-card-block__head';
+            const detailHeadTitle = document.createElement('span');
+            detailHeadTitle.textContent = 'Descrição vinculada';
+            detailHead.appendChild(detailHeadTitle);
+            detailHead.appendChild(detailEnabledWrap);
+            detailBlock.appendChild(detailHead);
+
+            const detailHint = document.createElement('p');
+            detailHint.className = 'admin-card-block__hint';
+            detailHint.textContent = 'Quando ativada, o card mostra o botão "Ver mais" e rola para a seção detalhada abaixo dos cards.';
+            detailBlock.appendChild(detailHint);
+
+            const detailFields = document.createElement('div');
+            detailFields.className = 'admin-card-detail-fields';
+            detailFields.setAttribute('data-card-detail-fields', '');
+            detailFields.hidden = !detailEnabledInput.checked;
+            detailFields.appendChild(detailTitleLabel);
+            detailFields.appendChild(detailSubtitleLabel);
+            detailFields.appendChild(detailBodyLabel);
+            detailFields.appendChild(detailButtonTextLabel);
+            detailFields.appendChild(detailMediaWrap);
+            detailBlock.appendChild(detailFields);
+
+            cardEditor.appendChild(basicBlock);
+            cardEditor.appendChild(detailBlock);
+            fields.appendChild(cardEditor);
 
             const actions = document.createElement('div');
             actions.className = 'admin-home-actions';
+
+            const orderWrap = document.createElement('div');
+            orderWrap.className = 'admin-home-order';
+            const orderLabel = document.createElement('span');
+            orderLabel.className = 'admin-home-order__label';
+            orderLabel.setAttribute('data-item-order', '');
+            const orderButtons = document.createElement('div');
+            orderButtons.className = 'admin-home-order__buttons';
+            const upBtn = document.createElement('button');
+            upBtn.type = 'button';
+            upBtn.className = 'btn btn-secondary admin-home-order-btn';
+            upBtn.textContent = '↑';
+            upBtn.setAttribute('data-move-up', '');
+            upBtn.setAttribute('aria-label', 'Mover para cima');
+            const downBtn = document.createElement('button');
+            downBtn.type = 'button';
+            downBtn.className = 'btn btn-secondary admin-home-order-btn';
+            downBtn.textContent = '↓';
+            downBtn.setAttribute('data-move-down', '');
+            downBtn.setAttribute('aria-label', 'Mover para baixo');
+            orderButtons.appendChild(upBtn);
+            orderButtons.appendChild(downBtn);
+            orderWrap.appendChild(orderLabel);
+            orderWrap.appendChild(orderButtons);
+            actions.appendChild(orderWrap);
+
             const deleteBtn = document.createElement('button');
             deleteBtn.type = 'button';
             deleteBtn.className = 'btn btn-secondary';
@@ -725,6 +1006,7 @@
                         const el = createCardEl(json.card);
                         cardsList.appendChild(el);
                         bindCardItem(el);
+                        if (cardsOrderable && cardsOrderable.refresh) cardsOrderable.refresh();
                     }
                     setIndicator('is-saved', 'Salvo');
                 } catch (e) {
@@ -985,97 +1267,6 @@
         startAutoplay();
     };
 
-    const initHeroScrollBehavior = (heroRoot) => {
-        const main = document.querySelector('#home-main');
-        if (!main) return;
-
-        let hasAutoScrolled = false;
-
-        const shouldIgnoreEventTarget = (target) => {
-            if (!(target instanceof Element)) return false;
-            return !!target.closest('a, button, input, textarea, select, [contenteditable="true"]');
-        };
-
-        const isHeroMostlyVisible = () => {
-            const rect = heroRoot.getBoundingClientRect();
-            const vh = Math.max(window.innerHeight, 1);
-            const visible = Math.min(vh, rect.bottom) - Math.max(0, rect.top);
-            return visible / vh > 0.6;
-        };
-
-        const onWheel = (event) => {
-            if (hasAutoScrolled) return;
-            if (prefersReducedMotion) return;
-            if (shouldIgnoreEventTarget(event.target)) return;
-            if (window.scrollY > 4) return;
-            if (event.deltaY <= 0) return;
-            if (!isHeroMostlyVisible()) return;
-
-            hasAutoScrolled = true;
-            event.preventDefault();
-            scrollToElement(main);
-        };
-
-        window.addEventListener('wheel', onWheel, { passive: false });
-
-        const onKeyDown = (event) => {
-            if (hasAutoScrolled) return;
-            if (prefersReducedMotion) return;
-            if (shouldIgnoreEventTarget(event.target)) return;
-            if (window.scrollY > 4) return;
-            if (!isHeroMostlyVisible()) return;
-
-            const keys = ['ArrowDown', 'PageDown', ' ', 'Spacebar'];
-            if (!keys.includes(event.key)) return;
-
-            hasAutoScrolled = true;
-            event.preventDefault();
-            scrollToElement(main);
-        };
-
-        window.addEventListener('keydown', onKeyDown);
-
-        let touchStartY = null;
-        let touchStartTime = null;
-
-        window.addEventListener(
-            'touchstart',
-            (event) => {
-                if (hasAutoScrolled) return;
-                if (!event.touches || event.touches.length !== 1) return;
-                touchStartY = event.touches[0].clientY;
-                touchStartTime = Date.now();
-            },
-            { passive: true },
-        );
-
-        window.addEventListener(
-            'touchend',
-            (event) => {
-                if (hasAutoScrolled) return;
-                if (prefersReducedMotion) return;
-                if (window.scrollY > 4) return;
-                if (!isHeroMostlyVisible()) return;
-                if (touchStartY === null || touchStartTime === null) return;
-
-                const elapsed = Date.now() - touchStartTime;
-                const changed = event.changedTouches && event.changedTouches[0];
-                if (!changed) return;
-
-                const delta = touchStartY - changed.clientY;
-                touchStartY = null;
-                touchStartTime = null;
-
-                if (elapsed > 700) return;
-                if (delta < 80) return;
-
-                hasAutoScrolled = true;
-                scrollToElement(main);
-            },
-            { passive: true },
-        );
-    };
-
     const initRevealAnimations = () => {
         const elements = Array.from(document.querySelectorAll('[data-reveal]'));
         if (elements.length === 0) return;
@@ -1129,6 +1320,5 @@
     initRevealAnimations();
     if (heroCarousel) {
         initHeroCarousel(heroCarousel);
-        initHeroScrollBehavior(heroCarousel);
     }
 })();

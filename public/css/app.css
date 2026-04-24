@@ -132,7 +132,7 @@ main section { margin-bottom: 1.5rem; }
     .admin-hero-preview { height: 200px; }
 }
 
-html.is-home { scroll-snap-type: y proximity; }
+html.is-home { scroll-snap-type: none; }
 body.is-home { background: #ffffff; }
 .is-home .site-header { position: fixed; inset: 0 0 auto 0; background: transparent; }
 .is-home .site-header::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(10, 31, 68, .82), rgba(10, 31, 68, .12)); z-index: 0; }
@@ -141,7 +141,7 @@ body.is-home { background: #ffffff; }
 .is-home .header-inner { position: relative; z-index: 2; padding: 1.1rem 0; }
 .is-home main { margin-top: 0; }
 
-.hero-carousel { position: relative; width: 100%; height: 100vh; height: 100svh; height: 100dvh; overflow: hidden; background: #0b1f3f; scroll-snap-align: start; }
+.hero-carousel { position: relative; width: 100%; height: 100vh; height: 100svh; height: 100dvh; overflow: hidden; background: #0b1f3f; scroll-snap-align: none; }
 .hero-carousel::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(10, 31, 68, .12) 0%, rgba(10, 31, 68, .35) 40%, rgba(10, 31, 68, .72) 100%); z-index: 2; pointer-events: none; }
 .hero-carousel__slides { position: absolute; inset: 0; }
 .hero-carousel__slide { position: absolute; inset: 0; opacity: 0; transition: opacity .75s ease; will-change: opacity; }
@@ -166,7 +166,7 @@ body.is-home { background: #ffffff; }
 .hero-carousel__dot { width: 10px; height: 10px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .55); background: transparent; padding: 0; cursor: pointer; }
 .hero-carousel__dot.is-active { background: rgba(255, 255, 255, .92); border-color: rgba(255, 255, 255, .92); }
 
-.home-main { background: #ffffff; scroll-snap-align: start; scroll-margin-top: 84px; padding-top: 84px; }
+.home-main { background: #ffffff; scroll-snap-align: none; scroll-margin-top: 84px; padding-top: 84px; }
 
 @media (prefers-reduced-motion: reduce) {
     .hero-carousel__slide { transition: none; }
