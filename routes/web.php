@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\AboutCompanyController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\SiteController;
 use Illuminate\Support\Facades\Route;
@@ -28,5 +29,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/home/cards/{card}/detail-image', [HomeController::class, 'cardDetailImageStore'])->name('home.cards.detail-image.store');
         Route::delete('/home/cards/{card}', [HomeController::class, 'cardDestroy'])->name('home.cards.destroy');
         Route::post('/home/cards/reorder', [HomeController::class, 'cardReorder'])->name('home.cards.reorder');
+
+        Route::get('/sobre-a-empresa', [AboutCompanyController::class, 'edit'])->name('about-company.edit');
+        Route::put('/sobre-a-empresa', [AboutCompanyController::class, 'update'])->name('about-company.update');
+        Route::put('/sobre-a-empresa/media-layout', [AboutCompanyController::class, 'mediaLayout'])->name('about-company.media-layout');
+        Route::post('/sobre-a-empresa/upload', [AboutCompanyController::class, 'upload'])->name('about-company.upload');
     });
 });

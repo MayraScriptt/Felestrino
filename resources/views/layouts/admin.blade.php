@@ -716,6 +716,7 @@
 
             <nav class="admin-nav" aria-label="Navegação administrativa">
                 <a class="admin-nav-link" href="{{ route('admin.home.edit') }}">Home</a>
+                <a class="admin-nav-link" href="{{ route('admin.about-company.edit') }}">Sobre a empresa</a>
             </nav>
 
             <div class="admin-sidebar-actions">
@@ -739,6 +740,13 @@
             <section class="admin-content">
                 @if (session('status'))
                     <div class="alert-success">{{ session('status') }}</div>
+                @endif
+                @if (! empty($loadErrors))
+                    <div class="alert-error">
+                        @foreach ($loadErrors as $error)
+                            <p>{{ $error }}</p>
+                        @endforeach
+                    </div>
                 @endif
                 @if ($errors->any())
                     <div class="alert-error">

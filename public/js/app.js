@@ -58,6 +58,96 @@
         });
     });
 
+    const initSiteNav = () => {
+        const nav = document.querySelector('[data-site-nav]');
+        const toggle = document.querySelector('[data-site-nav-toggle]');
+        const menu = document.querySelector('[data-site-nav-menu]');
+        if (!(nav instanceof HTMLElement)) return;
+        if (!(toggle instanceof HTMLButtonElement)) return;
+        if (!(menu instanceof HTMLElement)) return;
+
+        const storageKey = 'site-nav-open';
+        const mql = window.matchMedia ? window.matchMedia('(max-width: 767.98px)') : null;
+
+        const getStoredOpen = () => {
+            try {
+                return window.localStorage.getItem(storageKey) === '1';
+            } catch (e) {
+                return false;
+            }
+        };
+
+        const setStoredOpen = (isOpen) => {
+            try {
+                window.localStorage.setItem(storageKey, isOpen ? '1' : '0');
+            } catch (e) {}
+        };
+
+        const setLinksFocusable = (isFocusable) => {
+            const links = Array.from(menu.querySelectorAll('a'));
+            links.forEach((link) => {
+                if (!(link instanceof HTMLAnchorElement)) return;
+                link.tabIndex = isFocusable ? 0 : -1;
+            });
+        };
+
+        const isMobile = () => (mql ? mql.matches : window.innerWidth < 768);
+
+        const applyState = (isOpen, persist = true) => {
+            const mobile = isMobile();
+            const nextOpen = mobile ? Boolean(isOpen) : false;
+            nav.classList.toggle('is-open', nextOpen);
+            toggle.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+            toggle.setAttribute('aria-label', nextOpen ? 'Fechar menu' : 'Abrir menu');
+            menu.setAttribute('aria-hidden', mobile ? (nextOpen ? 'false' : 'true') : 'false');
+            setLinksFocusable(!mobile || nextOpen);
+            if (persist) setStoredOpen(nextOpen);
+        };
+
+        applyState(getStoredOpen(), false);
+
+        toggle.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (!isMobile()) return;
+            const openNow = nav.classList.contains('is-open');
+            applyState(!openNow, true);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') return;
+            if (!nav.classList.contains('is-open')) return;
+            applyState(false, true);
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!isMobile()) return;
+            if (!nav.classList.contains('is-open')) return;
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            if (nav.contains(target)) return;
+            applyState(false, true);
+        });
+
+        const handleViewportModeChange = () => {
+            if (!isMobile()) {
+                applyState(false, false);
+                return;
+            }
+            applyState(getStoredOpen(), false);
+        };
+
+        window.addEventListener('resize', handleViewportModeChange, { passive: true });
+        if (mql) {
+            try {
+                mql.addEventListener('change', handleViewportModeChange);
+            } catch (e) {
+                try {
+                    mql.addListener(handleViewportModeChange);
+                } catch (e2) {}
+            }
+        }
+    };
+
     const csrfMeta = document.querySelector('meta[name="csrf-token"]');
     const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
 
@@ -1316,7 +1406,48 @@
         });
     };
 
+    const initResponsiveProseMedia = () => {
+        const proseBlocks = Array.from(document.querySelectorAll('.prose'));
+        if (proseBlocks.length === 0) return;
+
+        const clampAbsoluteMedia = (root) => {
+            if (!(root instanceof HTMLElement)) return;
+            const rootWidth = root.clientWidth;
+            const rootHeight = Math.max(root.clientHeight, window.innerHeight * 0.5);
+            const mediaElements = Array.from(root.querySelectorAll('img,video,iframe'));
+
+            mediaElements.forEach((media) => {
+                if (!(media instanceof HTMLElement)) return;
+                const computed = window.getComputedStyle(media);
+                if (computed.position !== 'absolute') return;
+
+                const left = Number.parseFloat(media.style.left || '0') || 0;
+                const top = Number.parseFloat(media.style.top || '0') || 0;
+                const maxLeft = Math.max(0, rootWidth - media.offsetWidth);
+                const maxTop = Math.max(0, rootHeight - media.offsetHeight);
+
+                const nextLeft = Math.min(Math.max(left, 0), maxLeft);
+                const nextTop = Math.min(Math.max(top, 0), maxTop);
+                media.style.left = `${Math.round(nextLeft)}px`;
+                media.style.top = `${Math.round(nextTop)}px`;
+            });
+        };
+
+        proseBlocks.forEach((root) => {
+            if (root instanceof HTMLElement) {
+                root.style.position = 'relative';
+            }
+            clampAbsoluteMedia(root);
+        });
+
+        window.addEventListener('resize', () => {
+            proseBlocks.forEach((root) => clampAbsoluteMedia(root));
+        }, { passive: true });
+    };
+
     const heroCarousel = document.querySelector('[data-carousel="hero"]');
+    initSiteNav();
+    initResponsiveProseMedia();
     initRevealAnimations();
     if (heroCarousel) {
         initHeroCarousel(heroCarousel);

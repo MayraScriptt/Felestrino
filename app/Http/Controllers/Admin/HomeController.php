@@ -22,13 +22,46 @@ class HomeController extends Controller
 {
     public function edit(): View
     {
-        $settings = Setting::query()->whereIn('key', $this->keys())->pluck('value', 'key');
+        $loadErrors = [];
+        $settings = collect();
+        $carouselItems = collect();
+        $cards = collect();
+        $audits = collect();
+
+        try {
+            $settings = Setting::query()->whereIn('key', $this->keys())->pluck('value', 'key');
+        } catch (\Throwable $e) {
+            report($e);
+            $loadErrors[] = 'Não foi possível carregar as configurações. Verifique o banco de dados e as migrations.';
+        }
+
+        try {
+            $carouselItems = HomeCarouselItem::query()->orderBy('display_order')->orderBy('id')->get();
+        } catch (\Throwable $e) {
+            report($e);
+            $loadErrors[] = 'Não foi possível carregar os itens do carrossel. Verifique se a tabela home_carousel_items existe e está migrada.';
+        }
+
+        try {
+            $cards = HomeCard::query()->orderBy('display_order')->orderBy('id')->get();
+        } catch (\Throwable $e) {
+            report($e);
+            $loadErrors[] = 'Não foi possível carregar os cards. Verifique se a tabela home_cards existe e está migrada.';
+        }
+
+        try {
+            $audits = HomeContentAudit::query()->with('user')->latest()->limit(30)->get();
+        } catch (\Throwable $e) {
+            report($e);
+            $loadErrors[] = 'Não foi possível carregar o histórico de alterações.';
+        }
 
         return view('admin.home.edit', [
             'settings' => $settings,
-            'carouselItems' => HomeCarouselItem::query()->orderBy('display_order')->orderBy('id')->get(),
-            'cards' => HomeCard::query()->orderBy('display_order')->orderBy('id')->get(),
-            'audits' => HomeContentAudit::query()->with('user')->latest()->limit(30)->get(),
+            'carouselItems' => $carouselItems,
+            'cards' => $cards,
+            'audits' => $audits,
+            'loadErrors' => $loadErrors,
         ]);
     }
 
@@ -38,6 +71,8 @@ class HomeController extends Controller
             'company_name' => ['sometimes', 'required', 'string', 'max:150'],
             'tagline' => ['sometimes', 'nullable', 'string', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:40'],
+            'phone2' => ['sometimes', 'nullable', 'string', 'max:40'],
+            'message' => ['sometimes', 'nullable', 'string', 'max:500'],
             'email' => ['sometimes', 'nullable', 'email', 'max:150'],
             'address' => ['sometimes', 'nullable', 'string', 'max:255'],
             'about' => ['sometimes', 'nullable', 'string'],
@@ -582,6 +617,8 @@ class HomeController extends Controller
             'company_name',
             'tagline',
             'phone',
+            'phone2',
+            'message',
             'email',
             'address',
             'about',

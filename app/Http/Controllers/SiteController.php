@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AboutPage;
 use App\Models\HomeCard;
 use App\Models\HomeCarouselItem;
 use App\Models\MediaItem;
 use App\Models\Page;
-use App\Models\Service;
 use App\Models\Setting;
 use App\Support\SiteCache;
 use Illuminate\Contracts\View\View;
@@ -20,13 +20,11 @@ class SiteController extends Controller
             $homePage = Page::query()
                 ->where('slug', 'home')
                 ->where('is_published', true)
-                ->with(['sections' => fn ($query) => $query->where('is_published', true)])
                 ->first();
 
             return [
                 'settings' => $this->settings(),
                 'homePage' => $homePage,
-                'services' => Service::query()->where('is_published', true)->orderBy('display_order')->get(),
                 'homeCarousel' => HomeCarouselItem::query()->where('is_active', true)->orderBy('display_order')->orderBy('id')->get(),
                 'homeCards' => HomeCard::query()->where('is_active', true)->orderBy('display_order')->orderBy('id')->get(),
                 'gallery' => MediaItem::query()
@@ -48,10 +46,25 @@ class SiteController extends Controller
     public function page(string $slug): View
     {
         $data = Cache::remember(SiteCache::key("page:{$slug}"), now()->addMinutes(30), function () use ($slug) {
+            if ($slug === 'sobre') {
+                $aboutPage = AboutPage::query()->first();
+                $page = new Page([
+                    'title' => 'Sobre',
+                    'slug' => 'sobre',
+                    'content' => $aboutPage?->content ?? '',
+                    'is_published' => true,
+                ]);
+
+                return [
+                    'settings' => $this->settings(),
+                    'page' => $page,
+                    'allowHtml' => true,
+                ];
+            }
+
             $page = Page::query()
                 ->where('slug', $slug)
                 ->where('is_published', true)
-                ->with(['sections' => fn ($query) => $query->where('is_published', true)])
                 ->firstOrFail();
 
             return [
@@ -74,6 +87,8 @@ class SiteController extends Controller
             'company_name' => Setting::getValue('company_name', 'Felestrino Solucoes'),
             'tagline' => Setting::getValue('tagline', 'Tecnologia para agua e irrigacao'),
             'phone' => Setting::getValue('phone'),
+            'phone2' => Setting::getValue('phone2'),
+            'message' => Setting::getValue('message'),
             'email' => Setting::getValue('email'),
             'address' => Setting::getValue('address'),
             'about' => Setting::getValue('about'),

@@ -37,6 +37,8 @@ nav a:hover { background: rgba(10, 31, 68, .7); }
 .section-grid, .gallery-grid, .stats-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .card, .stat-card { background: white; border-radius: var(--radius); padding: 1rem; box-shadow: 0 8px 24px rgba(10, 31, 68, .1); }
 .prose { padding: 2rem 0; line-height: 1.7; }
+.prose img { max-width: 100%; height: auto; display: inline-block; }
+.prose iframe, .prose video { max-width: 100%; height: auto; }
 .title-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
 
 .home-cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: .5rem; }

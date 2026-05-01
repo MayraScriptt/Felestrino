@@ -408,6 +408,12 @@
                     <label>Telefone
                         <input type="text" name="phone" maxlength="40" value="{{ old('phone', $settings['phone'] ?? '') }}" data-home-setting>
                     </label>
+                    <label>Número do link do WhatsApp
+                        <input type="text" name="phone2" maxlength="40" value="{{ old('phone2', $settings['phone2'] ?? '') }}" data-home-setting>
+                    </label>
+                    <label>Mensagem do WhatsApp
+                        <textarea name="message" rows="2" maxlength="500" data-home-setting>{{ old('message', $settings['message'] ?? '') }}</textarea>
+                    </label>
                     <label>Email
                         <input type="email" name="email" maxlength="150" value="{{ old('email', $settings['email'] ?? '') }}" data-home-setting>
                     </label>

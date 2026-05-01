@@ -160,6 +160,61 @@
             height: calc(100svh - var(--site-header-offset, 0px));
             height: calc(100dvh - var(--site-header-offset, 0px));
         }
+
+        .home-contact-cta {
+            padding: clamp(2.6rem, 6vw, 4.2rem) 0;
+        }
+
+        .home-contact-cta__card {
+            max-width: 860px;
+            margin: 0 auto;
+            border: 1px solid rgba(13, 27, 62, 0.12);
+            border-radius: 1rem;
+            padding: clamp(1.8rem, 4vw, 2.4rem);
+            background: linear-gradient(180deg, #ffffff, #f7f9fc);
+            box-shadow: 0 14px 32px rgba(13, 27, 62, 0.08);
+            text-align: center;
+        }
+
+        .home-contact-cta__card h2 {
+            margin: 0 0 .8rem;
+            font-family: "Bebas Neue", sans-serif;
+            letter-spacing: .05em;
+            color: #0d1b3e;
+            font-size: clamp(2rem, 4vw, 2.8rem);
+            line-height: 1;
+        }
+
+        .home-contact-cta__card p {
+            margin: 0 auto 1.25rem;
+            max-width: 64ch;
+            line-height: 1.7;
+            font-size: 1.05rem;
+            color: rgba(13, 27, 62, 0.8);
+        }
+
+        .home-contact-cta__btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: .75rem 1.35rem;
+            background: #1f5c2e;
+            color: #ffffff;
+            font-family: "Rajdhani", sans-serif;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            text-decoration: none;
+            border: 1px solid rgba(31, 92, 46, 0.4);
+            transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+
+        .home-contact-cta__btn:hover {
+            background: #1b5329;
+            box-shadow: 0 12px 26px rgba(31, 92, 46, 0.18);
+            transform: translateY(-1px);
+        }
     </style>
 
     @php
@@ -240,7 +295,6 @@
         $initialButtonUrl = trim((string) ($slides[0]['button_url'] ?? ''));
         $initialButtonHref = $initialButtonUrl !== '' ? $initialButtonUrl : '#home-main';
         $hasHeroCopy = $initialTitle !== '' || $initialSubtitle !== '' || $initialButtonText !== '';
-
         $detailCards = ($homeCards ?? collect())
             ->filter(function ($card) {
                 if (! ($card->detail_enabled ?? false)) {
@@ -334,8 +388,8 @@
     <div id="home-main" class="home-main">
         @if (($homeCards ?? collect())->isNotEmpty())
             <section class="container">
-                <div class="section-eyebrow" data-reveal data-reveal-delay="0">Destaques</div>
-                <h2 class="section-title-v2" data-reveal data-reveal-delay="100">Cards Informativos</h2>
+                
+                <h2 class="section-title-v2" data-reveal data-reveal-delay="100">Destaques</h2>
                 <div class="home-cards">
                     @foreach ($homeCards as $card)
                         @php
@@ -378,7 +432,6 @@
                     <article id="card-detail-{{ $detailCard->id }}" class="home-card-detail {{ $themeClass }}">
                         <div class="container home-card-detail__inner">
                             <div class="home-card-detail__copy">
-                                <div class="home-card-detail__eyebrow">Descricao do card</div>
                                 <h3 class="home-card-detail__title">{{ $detailTitle }}</h3>
                                 @if ($detailCard->detail_subtitle)
                                     <p class="home-card-detail__subtitle">{{ $detailCard->detail_subtitle }}</p>
@@ -401,4 +454,24 @@
             </section>
         @endif
     </div>
+
+    @php
+        $whatsPhone = preg_replace('/\D+/', '', (string) ($settings['phone2'] ?? ''));
+        $whatsMessage = trim((string) ($settings['message'] ?? ''));
+        $whatsHref = $whatsPhone !== ''
+            ? 'https://wa.me/'.$whatsPhone.($whatsMessage !== '' ? '?text='.rawurlencode($whatsMessage) : '')
+            : null;
+    @endphp
+
+    @if ($whatsHref)
+        <section class="home-contact-cta" aria-label="Contato">
+            <div class="container">
+                <div class="home-contact-cta__card" data-reveal data-reveal-delay="120">
+                    <h2>Entre em contato conosco!</h2>
+                    <p>Junte-se aos nossos clientes satisfeitos e descubra como podemos transformar sua empresa com soluções modernas e eficientes.</p>
+                    <a class="home-contact-cta__btn" href="{{ $whatsHref }}" target="_blank" rel="noopener noreferrer">Falar no WhatsApp</a>
+                </div>
+            </div>
+        </section>
+    @endif
 @endsection
