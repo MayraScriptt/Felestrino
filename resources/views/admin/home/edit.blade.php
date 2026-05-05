@@ -248,9 +248,6 @@
                                 <label>Subtítulo
                                     <input type="text" maxlength="255" value="{{ $item->subtitle }}" data-carousel-subtitle>
                                 </label>
-                                <label>Link
-                                    <input type="url" maxlength="2048" value="{{ $item->link_url }}" placeholder="https://..." data-carousel-link>
-                                </label>
                                 <label>Texto do botão
                                     <input type="text" maxlength="80" value="{{ $item->button_text }}" placeholder="Ex.: Conhecer serviços" data-carousel-button-text>
                                 </label>

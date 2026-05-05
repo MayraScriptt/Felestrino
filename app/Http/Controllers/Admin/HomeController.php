@@ -187,7 +187,7 @@ class HomeController extends Controller
         $item->update([
             'title' => $payload['title'] ?? null,
             'subtitle' => $payload['subtitle'] ?? null,
-            'link_url' => $payload['link_url'] ?? null,
+            'link_url' => array_key_exists('link_url', $payload) ? ($payload['link_url'] ?? null) : $item->link_url,
             'button_text' => $payload['button_text'] ?? null,
             'button_url' => $payload['button_url'] ?? null,
             'is_active' => array_key_exists('is_active', $payload) ? (bool) $payload['is_active'] : $item->is_active,

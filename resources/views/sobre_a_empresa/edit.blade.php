@@ -74,11 +74,14 @@
                 setup: function (editor) {
                     var highestZ = 1;
                     var active = null;
+                    var selected = null;
                     var pointerOffsetX = 0;
                     var pointerOffsetY = 0;
                     var mediaPositions = initialMediaPositions && typeof initialMediaPositions === 'object' ? initialMediaPositions : {};
                     var autosaveTimer = null;
                     var dragHighlightClass = 'about-editor-media--dragging';
+                    var coordsBadge = null;
+                    var zControls = null;
 
                     function ensureBodyLayout() {
                         var body = editor.getBody();
@@ -87,6 +90,28 @@
                         body.style.minHeight = 'max(70vh, 420px)';
                         body.classList.add('about-editor-canvas');
                         return body;
+                    }
+
+                    function getEditorWin() {
+                        var win = editor.getWin();
+                        return win && typeof win === 'object' ? win : null;
+                    }
+
+                    function getViewportMetrics() {
+                        var win = getEditorWin();
+                        if (!win) {
+                            return { scrollLeft: 0, scrollTop: 0, width: 0, height: 0 };
+                        }
+                        var scrollLeft = typeof win.pageXOffset === 'number' ? win.pageXOffset : (typeof win.scrollX === 'number' ? win.scrollX : 0);
+                        var scrollTop = typeof win.pageYOffset === 'number' ? win.pageYOffset : (typeof win.scrollY === 'number' ? win.scrollY : 0);
+                        var width = typeof win.innerWidth === 'number' ? win.innerWidth : 0;
+                        var height = typeof win.innerHeight === 'number' ? win.innerHeight : 0;
+                        return {
+                            scrollLeft: Math.max(0, Math.round(scrollLeft)),
+                            scrollTop: Math.max(0, Math.round(scrollTop)),
+                            width: Math.max(0, Math.round(width)),
+                            height: Math.max(0, Math.round(height)),
+                        };
                     }
 
                     function hashString(input) {
@@ -125,19 +150,20 @@
                         return Array.from(body.querySelectorAll('img,video,iframe'));
                     }
 
-                    function getMaxBounds(body, element) {
-                        var maxLeft = Math.max(0, body.clientWidth - element.offsetWidth);
-                        var maxTop = Math.max(0, body.clientHeight - element.offsetHeight);
-                        return { maxLeft: maxLeft, maxTop: maxTop };
-                    }
+                    function clampAndApplyToViewport(element, desiredLeft, desiredTop) {
+                        if (!(element instanceof HTMLElement)) return;
+                        var metrics = getViewportMetrics();
+                        var width = element.offsetWidth;
+                        var height = element.offsetHeight;
 
-                    function clampAndApply(element, left, top) {
-                        var body = ensureBodyLayout();
-                        if (!(body instanceof HTMLElement)) return;
+                        var maxLeft = metrics.scrollLeft + Math.max(0, metrics.width - width);
+                        var maxTop = metrics.scrollTop + Math.max(0, metrics.height - height);
+                        var minLeft = metrics.scrollLeft;
+                        var minTop = metrics.scrollTop;
 
-                        var bounds = getMaxBounds(body, element);
-                        var nextLeft = clamp(left, 0, bounds.maxLeft);
-                        var nextTop = clamp(top, 0, bounds.maxTop);
+                        var nextLeft = clamp(desiredLeft, minLeft, maxLeft);
+                        var nextTop = clamp(desiredTop, minTop, maxTop);
+
                         element.style.left = Math.round(nextLeft) + 'px';
                         element.style.top = Math.round(nextTop) + 'px';
                     }
@@ -150,6 +176,8 @@
                         element.style.userSelect = 'none';
                         element.style.position = 'absolute';
                         element.style.transition = 'left .16s ease, top .16s ease, box-shadow .16s ease, transform .16s ease';
+                        element.style.maxWidth = 'min(100%, 92vw)';
+                        element.style.maxHeight = 'min(100%, 82vh)';
                         var currentZ = Number.parseInt(element.style.zIndex || '1', 10);
                         if (Number.isFinite(currentZ)) {
                             highestZ = Math.max(highestZ, currentZ);
@@ -163,54 +191,109 @@
                             '.about-editor-canvas{position:relative;overflow:auto;}',
                             '.about-editor-media{outline:1px dashed rgba(184,144,42,.4);outline-offset:2px;}',
                             '.about-editor-media--dragging{cursor:grabbing!important;box-shadow:0 14px 30px rgba(13,27,62,.24);transform:scale(1.01);outline:2px solid rgba(184,144,42,.7);}',
+                            '.about-editor-coords{position:fixed;right:10px;top:10px;z-index:2147483647;background:rgba(13,27,62,.86);color:#fff;font:600 12px/1.2 "DM Sans",Arial,sans-serif;border-radius:10px;padding:8px 10px;pointer-events:none;opacity:0;transform:translateY(-4px);transition:opacity .12s ease,transform .12s ease;}',
+                            '.about-editor-coords.is-visible{opacity:1;transform:translateY(0);}',
+                            '.about-editor-z{position:fixed;z-index:2147483646;display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.96);border:1px solid rgba(184,144,42,.35);border-radius:999px;padding:6px 8px;box-shadow:0 10px 26px rgba(8,17,42,.18);}',
+                            '.about-editor-z button{appearance:none;border:1px solid rgba(13,27,62,.18);background:#fff;border-radius:999px;padding:4px 8px;font:700 12px/1 "Rajdhani",Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#0d1b3e;cursor:pointer;}',
+                            '.about-editor-z button:active{transform:translateY(1px);}',
+                            '.about-editor-z span{font:700 12px/1 "Rajdhani",Arial,sans-serif;letter-spacing:.06em;color:rgba(13,27,62,.72);padding:0 4px;}',
                         ].join(''));
                     }
 
-                    function getElementBox(element) {
-                        return {
-                            left: Number.parseFloat(element.style.left || '0') || 0,
-                            top: Number.parseFloat(element.style.top || '0') || 0,
-                            right: (Number.parseFloat(element.style.left || '0') || 0) + element.offsetWidth,
-                            bottom: (Number.parseFloat(element.style.top || '0') || 0) + element.offsetHeight,
-                            width: element.offsetWidth,
-                            height: element.offsetHeight,
-                        };
+                    function ensureCoordsBadge() {
+                        if (coordsBadge instanceof HTMLElement) return coordsBadge;
+                        var doc = editor.getDoc();
+                        if (!(doc instanceof Document)) return null;
+                        var el = doc.createElement('div');
+                        el.className = 'about-editor-coords';
+                        el.textContent = '';
+                        doc.body.appendChild(el);
+                        coordsBadge = el;
+                        return el;
                     }
 
-                    function resolveHeavyOverlap(target, mediaElements) {
-                        if (!(target instanceof HTMLElement)) return;
-                        var attempts = 0;
-                        while (attempts < 12) {
-                            attempts += 1;
-                            var changed = false;
-                            var targetBox = getElementBox(target);
-                            for (var i = 0; i < mediaElements.length; i += 1) {
-                                var other = mediaElements[i];
-                                if (!(other instanceof HTMLElement) || other === target) continue;
-                                var otherBox = getElementBox(other);
+                    function showCoordsFor(element) {
+                        if (!(element instanceof HTMLElement)) return;
+                        var badge = ensureCoordsBadge();
+                        if (!(badge instanceof HTMLElement)) return;
+                        var left = Math.round(Number.parseFloat(element.style.left || '0') || 0);
+                        var top = Math.round(Number.parseFloat(element.style.top || '0') || 0);
+                        var zIndex = Number.parseInt(element.style.zIndex || '1', 10);
+                        badge.textContent = 'x: ' + left + 'px  y: ' + top + 'px  z: ' + (Number.isFinite(zIndex) ? zIndex : 1);
+                        badge.classList.add('is-visible');
+                    }
 
-                                var interLeft = Math.max(targetBox.left, otherBox.left);
-                                var interTop = Math.max(targetBox.top, otherBox.top);
-                                var interRight = Math.min(targetBox.right, otherBox.right);
-                                var interBottom = Math.min(targetBox.bottom, otherBox.bottom);
-                                var interWidth = Math.max(0, interRight - interLeft);
-                                var interHeight = Math.max(0, interBottom - interTop);
-                                var interArea = interWidth * interHeight;
-                                if (interArea <= 0) continue;
+                    function hideCoords() {
+                        if (!(coordsBadge instanceof HTMLElement)) return;
+                        coordsBadge.classList.remove('is-visible');
+                    }
 
-                                var minArea = Math.max(1, Math.min(targetBox.width * targetBox.height, otherBox.width * otherBox.height));
-                                var overlapRatio = interArea / minArea;
-                                if (overlapRatio < 0.72) continue;
+                    function ensureZControls() {
+                        if (zControls instanceof HTMLElement) return zControls;
+                        var doc = editor.getDoc();
+                        if (!(doc instanceof Document)) return null;
 
-                                clampAndApply(target, targetBox.left + 18, targetBox.top + 18);
-                                changed = true;
-                                break;
-                            }
+                        var wrap = doc.createElement('div');
+                        wrap.className = 'about-editor-z';
 
-                            if (!changed) {
-                                break;
-                            }
+                        var down = doc.createElement('button');
+                        down.type = 'button';
+                        down.textContent = 'Z-';
+
+                        var label = doc.createElement('span');
+                        label.textContent = 'z';
+
+                        var up = doc.createElement('button');
+                        up.type = 'button';
+                        up.textContent = 'Z+';
+
+                        wrap.appendChild(down);
+                        wrap.appendChild(label);
+                        wrap.appendChild(up);
+                        doc.body.appendChild(wrap);
+                        zControls = wrap;
+
+                        down.addEventListener('click', function (event) {
+                            event.preventDefault();
+                            if (!(selected instanceof HTMLElement)) return;
+                            var current = Number.parseInt(selected.style.zIndex || '1', 10);
+                            if (!Number.isFinite(current)) current = 1;
+                            var next = Math.max(1, current - 1);
+                            selected.style.zIndex = String(next);
+                            collectAndPersistPositions();
+                            positionZControls(selected);
+                        });
+
+                        up.addEventListener('click', function (event) {
+                            event.preventDefault();
+                            if (!(selected instanceof HTMLElement)) return;
+                            var current = Number.parseInt(selected.style.zIndex || '1', 10);
+                            if (!Number.isFinite(current)) current = 1;
+                            var next = Math.min(9999, current + 1);
+                            highestZ = Math.max(highestZ, next);
+                            selected.style.zIndex = String(next);
+                            collectAndPersistPositions();
+                            positionZControls(selected);
+                        });
+
+                        return wrap;
+                    }
+
+                    function positionZControls(element) {
+                        var wrap = ensureZControls();
+                        if (!(wrap instanceof HTMLElement)) return;
+                        if (!(element instanceof HTMLElement)) {
+                            wrap.style.display = 'none';
+                            return;
                         }
+                        var win = getEditorWin();
+                        if (!win) return;
+                        var rect = element.getBoundingClientRect();
+                        wrap.style.display = 'flex';
+                        var left = Math.max(10, Math.min(rect.left, win.innerWidth - wrap.offsetWidth - 10));
+                        var top = Math.max(10, Math.min(rect.top - wrap.offsetHeight - 10, win.innerHeight - wrap.offsetHeight - 10));
+                        wrap.style.left = Math.round(left) + 'px';
+                        wrap.style.top = Math.round(top) + 'px';
                     }
 
                     function restoreAllMedia() {
@@ -241,13 +324,23 @@
                             if (!Number.isFinite(left) || !Number.isFinite(top)) return;
                             var normalizedLeft = clamp(left, 0, 1);
                             var normalizedTop = clamp(top, 0, 1);
-                            var bounds = getMaxBounds(body, element);
-                            clampAndApply(element, normalizedLeft * bounds.maxLeft, normalizedTop * bounds.maxTop);
+                            var metrics = getViewportMetrics();
+                            var maxLeft = Math.max(0, metrics.width - element.offsetWidth);
+                            var maxTop = Math.max(0, metrics.height - element.offsetHeight);
+                            clampAndApplyToViewport(
+                                element,
+                                metrics.scrollLeft + (maxLeft > 0 ? normalizedLeft * maxLeft : 0),
+                                metrics.scrollTop + (maxTop > 0 ? normalizedTop * maxTop : 0)
+                            );
                             if (Number.isFinite(zIndex) && zIndex > 0) {
                                 element.style.zIndex = String(zIndex);
                                 highestZ = Math.max(highestZ, zIndex);
                             }
                         });
+
+                        if (selected instanceof HTMLElement) {
+                            positionZControls(selected);
+                        }
                     }
 
                     function collectAndPersistPositions() {
@@ -256,6 +349,7 @@
                         var next = {};
                         var sourceCount = {};
                         var mediaElements = getMediaElements(body);
+                        var metrics = getViewportMetrics();
 
                         mediaElements.forEach(function (element, index) {
                             if (!(element instanceof HTMLElement)) return;
@@ -269,15 +363,18 @@
                             }
                             sourceCount[source] = (sourceCount[source] || 0) + 1;
                             var id = mediaId(element, index, sourceCount);
-                            var bounds = getMaxBounds(body, element);
                             var leftPx = Number.parseFloat(element.style.left || '0') || 0;
                             var topPx = Number.parseFloat(element.style.top || '0') || 0;
                             var zIndex = Number.parseInt(element.style.zIndex || '1', 10);
+                            var maxLeft = Math.max(0, metrics.width - element.offsetWidth);
+                            var maxTop = Math.max(0, metrics.height - element.offsetHeight);
+                            var visibleLeft = leftPx - metrics.scrollLeft;
+                            var visibleTop = topPx - metrics.scrollTop;
                             next[id] = {
-                                left: bounds.maxLeft > 0 ? clamp(leftPx / bounds.maxLeft, 0, 1) : 0,
-                                top: bounds.maxTop > 0 ? clamp(topPx / bounds.maxTop, 0, 1) : 0,
-                                width: body.clientWidth > 0 ? clamp(element.offsetWidth / body.clientWidth, 0, 1) : 0,
-                                height: body.clientHeight > 0 ? clamp(element.offsetHeight / body.clientHeight, 0, 1) : 0,
+                                left: maxLeft > 0 ? clamp(visibleLeft / maxLeft, 0, 1) : 0,
+                                top: maxTop > 0 ? clamp(visibleTop / maxTop, 0, 1) : 0,
+                                width: metrics.width > 0 ? clamp(element.offsetWidth / metrics.width, 0, 1) : 0,
+                                height: metrics.height > 0 ? clamp(element.offsetHeight / metrics.height, 0, 1) : 0,
                                 z: Number.isFinite(zIndex) && zIndex > 0 ? zIndex : 1,
                             };
                         });
@@ -303,23 +400,23 @@
 
                     function pointerMove(event) {
                         if (!(active instanceof HTMLElement)) return;
-                        var body = ensureBodyLayout();
-                        if (!(body instanceof HTMLElement)) return;
-                        var bodyRect = body.getBoundingClientRect();
-                        var left = event.clientX - bodyRect.left - pointerOffsetX;
-                        var top = event.clientY - bodyRect.top - pointerOffsetY;
-                        clampAndApply(active, left, top);
+                        var metrics = getViewportMetrics();
+                        var left = metrics.scrollLeft + event.clientX - pointerOffsetX;
+                        var top = metrics.scrollTop + event.clientY - pointerOffsetY;
+                        clampAndApplyToViewport(active, left, top);
+                        showCoordsFor(active);
+                        if (selected === active) {
+                            positionZControls(active);
+                        }
                     }
 
                     function pointerUp() {
                         if (!(active instanceof HTMLElement)) return;
-                        var body = ensureBodyLayout();
-                        var allMedia = body ? getMediaElements(body) : [];
                         active.style.cursor = 'grab';
                         active.style.transition = 'left .16s ease, top .16s ease';
                         active.classList.remove(dragHighlightClass);
-                        resolveHeavyOverlap(active, allMedia);
                         collectAndPersistPositions();
+                        hideCoords();
                         active = null;
                     }
 
@@ -338,6 +435,8 @@
                             event.preventDefault();
 
                             makeMediaDraggable(media);
+                            selected = media;
+                            positionZControls(media);
                             media.style.transition = 'none';
                             media.style.cursor = 'grabbing';
                             media.classList.add(dragHighlightClass);
@@ -359,6 +458,24 @@
                         body.addEventListener('pointerup', pointerUp);
                         body.addEventListener('pointercancel', pointerUp);
                         body.addEventListener('lostpointercapture', pointerUp);
+
+                        body.addEventListener('click', function (event) {
+                            var target = event.target;
+                            if (!(target instanceof Element)) return;
+                            var media = target.closest('img,video,iframe');
+                            if (!(media instanceof HTMLElement)) return;
+                            selected = media;
+                            positionZControls(media);
+                        });
+
+                        var win = getEditorWin();
+                        if (win) {
+                            win.addEventListener('scroll', function () {
+                                if (selected instanceof HTMLElement) {
+                                    positionZControls(selected);
+                                }
+                            }, { passive: true });
+                        }
                     });
 
                     editor.on('SetContent change undo redo ObjectResized', function () {
@@ -370,7 +487,6 @@
                     window.addEventListener('resize', function () {
                         window.requestAnimationFrame(function () {
                             restoreAllMedia();
-                            collectAndPersistPositions();
                         });
                     }, { passive: true });
                 },

@@ -416,7 +416,6 @@
 
             const titleInput = itemEl.querySelector('[data-carousel-title]');
             const subtitleInput = itemEl.querySelector('[data-carousel-subtitle]');
-            const linkInput = itemEl.querySelector('[data-carousel-link]');
             const buttonTextInput = itemEl.querySelector('[data-carousel-button-text]');
             const buttonUrlInput = itemEl.querySelector('[data-carousel-button-url]');
             const activeInput = itemEl.querySelector('[data-carousel-active]');
@@ -436,7 +435,6 @@
                         body: JSON.stringify({
                             title: titleInput ? titleInput.value : '',
                             subtitle: subtitleInput ? subtitleInput.value : '',
-                            link_url: linkInput ? linkInput.value : '',
                             button_text: buttonTextInput ? buttonTextInput.value : '',
                             button_url: buttonUrlInput ? buttonUrlInput.value : '',
                             is_active: activeInput ? !!activeInput.checked : true,
@@ -450,7 +448,6 @@
 
             if (titleInput) titleInput.addEventListener('input', saveItem);
             if (subtitleInput) subtitleInput.addEventListener('input', saveItem);
-            if (linkInput) linkInput.addEventListener('input', saveItem);
             if (buttonTextInput) buttonTextInput.addEventListener('input', saveItem);
             if (buttonUrlInput) buttonUrlInput.addEventListener('input', saveItem);
             if (activeInput) activeInput.addEventListener('change', saveItem);
@@ -563,16 +560,6 @@
             subtitleInput.setAttribute('data-carousel-subtitle', '');
             subtitleLabel.appendChild(subtitleInput);
 
-            const linkLabel = document.createElement('label');
-            linkLabel.textContent = 'Link';
-            const linkInput = document.createElement('input');
-            linkInput.type = 'url';
-            linkInput.maxLength = 2048;
-            linkInput.placeholder = 'https://...';
-            linkInput.value = item.link_url || '';
-            linkInput.setAttribute('data-carousel-link', '');
-            linkLabel.appendChild(linkInput);
-
             const buttonTextLabel = document.createElement('label');
             buttonTextLabel.textContent = 'Texto do botão';
             const buttonTextInput = document.createElement('input');
@@ -604,7 +591,6 @@
 
             fields.appendChild(titleLabel);
             fields.appendChild(subtitleLabel);
-            fields.appendChild(linkLabel);
             fields.appendChild(buttonTextLabel);
             fields.appendChild(buttonUrlLabel);
             fields.appendChild(activeLabel);

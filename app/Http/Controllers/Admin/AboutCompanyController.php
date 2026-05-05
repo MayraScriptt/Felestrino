@@ -28,8 +28,8 @@ class AboutCompanyController extends Controller
             ]);
         }
 
-        return view('sobre a empresa.edit', [
-            'title' => 'Sobre a empresa',
+        return view('sobre_a_empresa.edit', [
+            'title' => 'Sobre_a_empresa',
             'aboutPage' => $aboutPage,
             'loadErrors' => $loadErrors,
         ]);
@@ -94,7 +94,7 @@ class AboutCompanyController extends Controller
         /** @var UploadedFile $file */
         $file = $payload['file'];
 
-        $path = Storage::disk('public')->putFile('sobre-a-empresa', $file);
+        $path = Storage::disk('public')->putFile('sobre_a_empresa', $file);
 
         return response()->json([
             'location' => asset('storage/'.$path),
