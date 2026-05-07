@@ -28,7 +28,7 @@ class AboutCompanyController extends Controller
             ]);
         }
 
-        return view('sobre_a_empresa.edit', [
+        return view('admin.sobre_a_empresa.edit', [
             'title' => 'Sobre_a_empresa',
             'aboutPage' => $aboutPage,
             'loadErrors' => $loadErrors,

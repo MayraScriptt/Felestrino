@@ -717,6 +717,7 @@
             <nav class="admin-nav" aria-label="Navegação administrativa">
                 <a class="admin-nav-link" href="{{ route('admin.home.edit') }}">Home</a>
                 <a class="admin-nav-link" href="{{ route('admin.about-company.edit') }}">Sobre a empresa</a>
+                <a class="admin-nav-link" href="{{ route('admin.projects.edit') }}">Projetos</a>
             </nav>
 
             <div class="admin-sidebar-actions">

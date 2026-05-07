@@ -7,6 +7,8 @@ use App\Models\HomeCard;
 use App\Models\HomeCarouselItem;
 use App\Models\MediaItem;
 use App\Models\Page;
+use App\Models\Project;
+use App\Models\ProjectPage;
 use App\Models\Setting;
 use App\Support\SiteCache;
 use Illuminate\Contracts\View\View;
@@ -79,6 +81,56 @@ class SiteController extends Controller
         ];
 
         return view('site.page', $data + ['seo' => $seo]);
+    }
+
+    public function projects(): View
+    {
+        $data = Cache::remember(SiteCache::key('projects'), now()->addMinutes(30), function () {
+            $projectPage = ProjectPage::query()->first();
+
+            return [
+                'settings' => $this->settings(),
+                'projectPage' => $projectPage,
+                'projects' => Project::query()
+                    ->where('is_active', true)
+                    ->with(['images' => fn ($query) => $query->where('is_active', true)->orderBy('display_order')->orderBy('id')])
+                    ->orderBy('display_order')
+                    ->orderBy('id')
+                    ->get(),
+            ];
+        });
+
+        $seo = [
+            'title' => ($data['projectPage']?->title ?: 'Projetos').' | '.($data['settings']['company_name'] ?? 'Felestrino Solucoes'),
+            'description' => $data['projectPage']?->subtitle ?: ($data['settings']['seo_description'] ?? ''),
+        ];
+
+        return view('site.projects', $data + ['seo' => $seo]);
+    }
+
+    public function project(Project $project): View
+    {
+        abort_unless($project->is_active, 404);
+
+        $data = Cache::remember(SiteCache::key("project:{$project->id}"), now()->addMinutes(30), function () use ($project) {
+            $loadedProject = Project::query()
+                ->whereKey($project->id)
+                ->where('is_active', true)
+                ->with(['images' => fn ($query) => $query->where('is_active', true)->orderBy('display_order')->orderBy('id')])
+                ->firstOrFail();
+
+            return [
+                'settings' => $this->settings(),
+                'project' => $loadedProject,
+            ];
+        });
+
+        $seo = [
+            'title' => $data['project']->title.' | '.($data['settings']['company_name'] ?? 'Felestrino Solucoes'),
+            'description' => $data['project']->subtitle ?: ($data['settings']['seo_description'] ?? ''),
+        ];
+
+        return view('site.project', $data + ['seo' => $seo]);
     }
 
     private function settings(): array

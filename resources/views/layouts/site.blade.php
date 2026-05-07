@@ -245,6 +245,7 @@
                 <div class="site-nav__menu" id="site-nav-menu" data-site-nav-menu aria-hidden="true">
                     <a href="{{ route('site.home') }}">Home</a>
                     <a href="{{ route('site.page', ['slug' => 'sobre']) }}">Sobre</a>
+                    <a href="{{ route('site.projects') }}">Projetos</a>
                     <a href="#contato" class="nav-cta">Contato</a>
                 </div>
             </nav>
