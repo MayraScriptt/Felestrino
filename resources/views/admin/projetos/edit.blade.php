@@ -10,7 +10,7 @@
         .projects-create-form {
             display: grid;
             gap: .7rem;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             align-items: end;
         }
 
@@ -19,31 +19,125 @@
             gap: .85rem;
         }
 
-        .project-card-item {
+        .projects-cards-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .project-card {
             border: 1px solid rgba(13, 27, 62, 0.1);
-            border-radius: .7rem;
-            padding: .85rem;
-            display: grid;
-            gap: .7rem;
+            border-radius: .9rem;
+            padding: 1rem;
             background: #fff;
-        }
-
-        .project-card-item__grid {
+            box-shadow: 0 12px 28px rgba(8, 17, 42, 0.07);
             display: grid;
-            gap: .6rem;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            align-items: end;
+            gap: .75rem;
         }
 
-        .project-card-item__actions {
+        .project-card__subtitle {
+            color: #b8902a;
+            font-family: "Rajdhani", sans-serif;
+            font-size: .82rem;
+            font-weight: 700;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
+
+        .project-card h2 {
+            margin: 0;
+            color: #0d1b3e;
+            font-size: 1.2rem;
+            line-height: 1.25;
+            font-family: "Rajdhani", sans-serif;
+            letter-spacing: .02em;
+        }
+
+        .project-card p {
+            margin: 0;
+            color: rgba(13, 27, 62, 0.8);
+            line-height: 1.65;
+            font-size: .95rem;
+        }
+
+        .project-card__meta {
+            font-size: .82rem;
+            color: rgba(13, 27, 62, 0.68);
+            word-break: break-word;
+        }
+
+        .project-card__actions {
             display: flex;
             flex-wrap: wrap;
             gap: .55rem;
+            align-items: center;
         }
 
-        .project-card-item__slug {
-            font-size: .82rem;
-            color: rgba(13, 27, 62, 0.68);
+        .project-card__actions form {
+            margin: 0;
+        }
+
+        .project-card__btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            border: 1px solid rgba(184, 144, 42, 0.38);
+            background: #f8eac7;
+            color: #0d1b3e;
+            font-family: "Rajdhani", sans-serif;
+            font-size: .84rem;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            text-decoration: none;
+            padding: .58rem 1rem;
+            transition: filter .2s ease, transform .15s ease;
+        }
+
+        .project-card__btn:hover {
+            filter: brightness(1.04);
+            transform: translateY(-1px);
+        }
+
+        .project-card__btn--secondary {
+            background: rgba(13, 27, 62, 0.04);
+            border-color: rgba(13, 27, 62, 0.16);
+            color: #0d1b3e;
+        }
+
+        .project-card__btn--danger {
+            background: rgba(153, 27, 27, 0.08);
+            border-color: rgba(153, 27, 27, 0.22);
+            color: #991b1b;
+        }
+
+        .project-card__btn--danger:hover {
+            filter: none;
+        }
+
+        .project-card__status {
+            font-size: .78rem;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: rgba(13, 27, 62, 0.62);
+        }
+
+        .project-card__status.is-inactive {
+            color: rgba(153, 27, 27, 0.78);
+        }
+
+        .project-card__order {
+            font-size: .78rem;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: rgba(13, 27, 62, 0.62);
+        }
+
+        .project-card__order strong {
+            color: rgba(13, 27, 62, 0.9);
         }
     </style>
 
@@ -93,9 +187,6 @@
                 <label>Subtítulo
                     <input type="text" name="subtitle" maxlength="255">
                 </label>
-                <label>Link (slug)
-                    <input type="text" name="slug" maxlength="190" placeholder="exemplo-projeto">
-                </label>
                 <label>Texto do botão
                     <input type="text" name="button_text" maxlength="80" value="Ver projeto">
                 </label>
@@ -110,53 +201,35 @@
             <div class="admin-section-head">
                 <div>
                     <div class="admin-section-kicker">Projetos cadastrados</div>
-                    <h2>Editar cards e acessar páginas individuais</h2>
+                    <h2>Cards (para editar, entre no projeto)</h2>
                 </div>
             </div>
 
             @if (($projects ?? collect())->isEmpty())
                 <p>Nenhum projeto cadastrado ainda.</p>
             @else
-                <div class="projects-card-list">
+                <div class="projects-cards-grid">
                     @foreach ($projects as $project)
-                        <div class="project-card-item">
-                            <div class="project-card-item__slug">Link público: {{ route('site.projects.show', $project->slug) }}</div>
-                            <form class="project-card-item__grid" action="{{ route('admin.projects.cards.update', $project) }}" method="POST">
-                                @csrf
-                                @method('PUT')
-                                <label>Título
-                                    <input type="text" name="title" maxlength="140" value="{{ $project->title }}" required>
-                                </label>
-                                <label>Subtítulo
-                                    <input type="text" name="subtitle" maxlength="255" value="{{ $project->subtitle }}">
-                                </label>
-                                <label>Descrição
-                                    <textarea name="description" rows="2">{{ $project->description }}</textarea>
-                                </label>
-                                <label>Link (slug)
-                                    <input type="text" name="slug" maxlength="190" value="{{ $project->slug }}" required>
-                                </label>
-                                <label>Texto do botão
-                                    <input type="text" name="button_text" maxlength="80" value="{{ $project->button_text }}">
-                                </label>
-                                <label>Ordem
-                                    <input type="number" name="display_order" min="0" max="999999" value="{{ $project->display_order }}">
-                                </label>
-                                <label class="checkbox-line">
-                                    <input type="checkbox" name="is_active" value="1" @checked($project->is_active)>
-                                    Projeto ativo
-                                </label>
-                                <div class="project-card-item__actions">
-                                    <button class="btn" type="submit">Salvar card</button>
-                                    <a class="btn btn-secondary" href="{{ route('admin.projects.project.edit', $project) }}">Editar página do projeto</a>
-                                </div>
-                            </form>
-                            <form action="{{ route('admin.projects.cards.destroy', $project) }}" method="POST" onsubmit="return confirm('Deseja remover este projeto?');">
-                                @csrf
-                                @method('DELETE')
-                                <button class="btn btn-secondary" type="submit">Excluir projeto</button>
-                            </form>
-                        </div>
+                        <article class="project-card">
+                            @if ($project->subtitle)
+                                <div class="project-card__subtitle">{{ $project->subtitle }}</div>
+                            @endif
+                            <h2>{{ $project->title }}</h2>
+                            @if ($project->description)
+                                <p>{{ $project->description }}</p>
+                            @endif
+                            <div class="project-card__meta">
+                                Link público: {{ route('site.projects.show', $project->slug) }}
+                            </div>
+                            <div class="project-card__actions">
+                                <a class="project-card__btn" href="{{ route('admin.projects.project.edit', $project) }}">Editar projeto</a>
+                                <a class="project-card__btn project-card__btn--secondary" href="{{ route('site.projects.show', $project->slug) }}" target="_blank" rel="noopener noreferrer">Ver no site</a>
+                                <span class="project-card__status @if (! $project->is_active) is-inactive @endif">
+                                    @if ($project->is_active) Ativo @else Inativo @endif
+                                </span>
+                                <span class="project-card__order">Ordem: <strong>{{ $project->display_order }}</strong></span>
+                            </div>
+                        </article>
                     @endforeach
                 </div>
             @endif

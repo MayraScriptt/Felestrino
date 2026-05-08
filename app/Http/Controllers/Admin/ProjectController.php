@@ -62,14 +62,12 @@ class ProjectController extends Controller
             'title' => ['required', 'string', 'max:140'],
             'subtitle' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'slug' => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'],
             'button_text' => ['nullable', 'string', 'max:80'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
         $nextOrder = (int) (Project::query()->max('display_order') ?? 0) + 1;
-        $baseSlug = $payload['slug'] ?? Str::slug((string) $payload['title']);
-        $slug = $this->uniqueSlug($baseSlug, null);
+        $slug = $this->uniqueSlug((string) $payload['title'], null);
 
         $project = Project::query()->create([
             'title' => $payload['title'],

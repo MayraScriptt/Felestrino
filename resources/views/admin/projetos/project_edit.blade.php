@@ -47,7 +47,14 @@
 
     <div class="project-detail-head">
         <h1>Projeto: {{ $project->title }}</h1>
-        <a class="btn btn-secondary" href="{{ route('admin.projects.edit') }}">Voltar para Projetos</a>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+            <a class="btn btn-secondary" href="{{ route('admin.projects.edit') }}">Voltar para Projetos</a>
+            <form action="{{ route('admin.projects.cards.destroy', $project) }}" method="POST" onsubmit="return confirm('Deseja remover este projeto?');">
+                @csrf
+                @method('DELETE')
+                <button class="btn btn-secondary" type="submit">Excluir projeto</button>
+            </form>
+        </div>
     </div>
 
     <section class="project-detail-grid">
