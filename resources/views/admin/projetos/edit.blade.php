@@ -149,6 +149,37 @@
             box-shadow: 0 12px 28px rgba(8, 17, 42, 0.07);
             display: grid;
             gap: .75rem;
+            position: relative;
+        }
+
+        .project-card__remove-form {
+            margin: 0;
+        }
+
+        .project-card__remove-btn {
+            appearance: none;
+            border: 1px solid rgba(13, 27, 62, 0.18);
+            background: #f8eac7;
+            color: #0d1b3e;
+            width: 38px;
+            height: 38px;
+            border-radius: .55rem;
+            position: absolute;
+            top: .65rem;
+            right: .65rem;
+            display: grid;
+            place-items: center;
+            font-size: 1.25rem;
+            line-height: 1;
+            cursor: pointer;
+            transition: filter .2s ease, background-color .2s ease, border-color .2s ease;
+            z-index: 2;
+        }
+
+        .project-card__remove-btn:hover,
+        .project-card__remove-btn:focus-visible {
+            border-color: rgba(184, 144, 42, 0.55);
+            filter: brightness(1.02);
         }
 
         .project-card__subtitle {
@@ -364,6 +395,12 @@
                     <div class="projects-cards-grid">
                         @foreach ($projects as $project)
                             <article class="project-card">
+                                <form class="project-card__remove-form" action="{{ route('admin.projects.cards.destroy', $project) }}" method="POST" onsubmit="return confirm('Deseja excluir este projeto? Isso removerá também as mídias associadas.');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="project-card__remove-btn" type="submit" title="Excluir projeto" aria-label="Excluir projeto">×</button>
+                                </form>
+
                                 @if ($project->subtitle)
                                     <div class="project-card__subtitle">{{ $project->subtitle }}</div>
                                 @endif

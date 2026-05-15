@@ -265,11 +265,6 @@
         <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;justify-content:flex-end;">
             <button class="btn" type="submit" form="project-main-form">Salvar</button>
             <a class="btn btn-secondary" href="{{ route('admin.projects.edit') }}">Voltar para Projetos</a>
-            <form action="{{ route('admin.projects.cards.destroy', $project) }}" method="POST" onsubmit="return confirm('Deseja remover este projeto?');">
-                @csrf
-                @method('DELETE')
-                <button class="btn btn-secondary" type="submit">Excluir projeto</button>
-            </form>
         </div>
     </div>
 
