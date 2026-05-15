@@ -4,19 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Project extends Model
+class ProjectMedia extends Model
 {
     use HasFactory;
 
+    protected $table = 'project_media';
+
     protected $fillable = [
-        'title',
-        'subtitle',
+        'project_id',
+        'type',
+        'image_path',
+        'youtube_id',
+        'youtube_url',
         'description',
-        'slug',
-        'button_text',
-        'banner_path',
         'display_order',
         'is_active',
     ];
@@ -28,8 +30,9 @@ class Project extends Model
         ];
     }
 
-    public function images(): HasMany
+    public function project(): BelongsTo
     {
-        return $this->hasMany(ProjectMedia::class, 'project_id')->orderBy('display_order')->orderBy('id');
+        return $this->belongsTo(Project::class);
     }
 }
+

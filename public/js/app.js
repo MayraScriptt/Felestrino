@@ -179,6 +179,7 @@
 
     const initHomeAdmin = (root) => {
         const indicator = document.querySelector('[data-autosave-indicator]');
+        const saveAllButton = document.querySelector('[data-home-save-all]');
 
         const setIndicator = (state, text) => {
             if (!indicator) return;
@@ -187,33 +188,35 @@
             indicator.textContent = text;
         };
 
-        const saveSettings = debounce(async (name, value) => {
-            if (!csrfToken) return;
-            setIndicator('is-saving', 'Salvando…');
-            try {
-                await fetchJson('/admin/home', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Accept: 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                    },
-                    body: JSON.stringify({ [name]: value }),
-                });
-                setIndicator('is-saved', 'Salvo');
-            } catch (e) {
-                setIndicator('is-error', 'Erro ao salvar');
-            }
-        }, 650);
+        const dirtySettings = new Map();
+        const dirtyCarouselItems = new Set();
+        const dirtyCardItems = new Set();
+        let carouselOrderDirty = false;
+        let cardsOrderDirty = false;
+
+        const markDirty = () => {
+            setIndicator(null, 'Não salvo');
+        };
 
         const settingInputs = root.querySelectorAll('[data-home-setting]');
         settingInputs.forEach((input) => {
-            input.addEventListener('input', () => {
-                const name = input.getAttribute('name');
-                if (!name) return;
-                const value = input.value;
-                saveSettings(name, value);
-            });
+            const name = input.getAttribute('name');
+            if (!name) return;
+            input.setAttribute('data-initial', input.value || '');
+
+            const onChange = () => {
+                const initial = input.getAttribute('data-initial') || '';
+                const current = input.value || '';
+                if (current === initial) {
+                    dirtySettings.delete(name);
+                } else {
+                    dirtySettings.set(name, current);
+                }
+                markDirty();
+            };
+
+            input.addEventListener('input', onChange);
+            input.addEventListener('change', onChange);
         });
 
         const carouselList = root.querySelector('[data-home-carousel-list]');
@@ -371,7 +374,15 @@
                 }
 
                 updateOrderUi(listEl, itemSelector);
-                postReorder(reorderUrl, itemSelector);
+                if (typeof reorderUrl === 'string' && reorderUrl !== '') {
+                    if (reorderUrl.includes('/carousel/')) {
+                        carouselOrderDirty = true;
+                    }
+                    if (reorderUrl.includes('/cards/')) {
+                        cardsOrderDirty = true;
+                    }
+                }
+                markDirty();
             };
 
             const bindItem = (itemEl) => {
@@ -421,36 +432,16 @@
             const activeInput = itemEl.querySelector('[data-carousel-active]');
             const deleteBtn = itemEl.querySelector('[data-carousel-delete]');
 
-            const saveItem = debounce(async () => {
-                if (!csrfToken) return;
-                setIndicator('is-saving', 'Salvando…');
-                try {
-                    await fetchJson(`/admin/home/carousel/${itemId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Accept: 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                        },
-                        body: JSON.stringify({
-                            title: titleInput ? titleInput.value : '',
-                            subtitle: subtitleInput ? subtitleInput.value : '',
-                            button_text: buttonTextInput ? buttonTextInput.value : '',
-                            button_url: buttonUrlInput ? buttonUrlInput.value : '',
-                            is_active: activeInput ? !!activeInput.checked : true,
-                        }),
-                    });
-                    setIndicator('is-saved', 'Salvo');
-                } catch (e) {
-                    setIndicator('is-error', 'Erro ao salvar');
-                }
-            }, 650);
+            const markCarouselItemDirty = () => {
+                dirtyCarouselItems.add(itemId);
+                markDirty();
+            };
 
-            if (titleInput) titleInput.addEventListener('input', saveItem);
-            if (subtitleInput) subtitleInput.addEventListener('input', saveItem);
-            if (buttonTextInput) buttonTextInput.addEventListener('input', saveItem);
-            if (buttonUrlInput) buttonUrlInput.addEventListener('input', saveItem);
-            if (activeInput) activeInput.addEventListener('change', saveItem);
+            if (titleInput) titleInput.addEventListener('input', markCarouselItemDirty);
+            if (subtitleInput) subtitleInput.addEventListener('input', markCarouselItemDirty);
+            if (buttonTextInput) buttonTextInput.addEventListener('input', markCarouselItemDirty);
+            if (buttonUrlInput) buttonUrlInput.addEventListener('input', markCarouselItemDirty);
+            if (activeInput) activeInput.addEventListener('change', markCarouselItemDirty);
 
             const maybeUpdatePreview = () => {
                 if (selectedCarouselId && itemEl.getAttribute('data-id') === selectedCarouselId) {
@@ -695,54 +686,27 @@
             const activeInput = itemEl.querySelector('[data-card-active]');
             const deleteBtn = itemEl.querySelector('[data-card-delete]');
 
-            const saveCard = debounce(async () => {
-                if (!csrfToken) return;
-                setIndicator('is-saving', 'Salvando…');
-                try {
-                    await fetchJson(`/admin/home/cards/${cardId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Accept: 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                        },
-                        body: JSON.stringify({
-                            title: titleInput ? titleInput.value : '',
-                            description: descriptionInput ? descriptionInput.value : '',
-                            detail_enabled: detailEnabledInput ? !!detailEnabledInput.checked : false,
-                            detail_title: detailTitleInput ? detailTitleInput.value : '',
-                            detail_subtitle: detailSubtitleInput ? detailSubtitleInput.value : '',
-                            detail_body: detailBodyInput ? detailBodyInput.value : '',
-                            detail_image_path: itemEl.getAttribute('data-detail-image-path') || '',
-                            detail_image_caption: detailImageCaptionInput ? detailImageCaptionInput.value : '',
-                            detail_button_text: detailButtonTextInput ? detailButtonTextInput.value : '',
-                            icon: iconInput ? iconInput.value : '',
-                            link_url: linkInput ? linkInput.value : '',
-                            is_active: activeInput ? !!activeInput.checked : true,
-                        }),
-                    });
-                    setIndicator('is-saved', 'Salvo');
-                } catch (e) {
-                    setIndicator('is-error', 'Erro ao salvar');
-                }
-            }, 650);
+            const markCardDirty = () => {
+                dirtyCardItems.add(cardId);
+                markDirty();
+            };
 
-            if (titleInput) titleInput.addEventListener('input', saveCard);
-            if (descriptionInput) descriptionInput.addEventListener('input', saveCard);
-            if (detailTitleInput) detailTitleInput.addEventListener('input', saveCard);
-            if (detailSubtitleInput) detailSubtitleInput.addEventListener('input', saveCard);
-            if (detailBodyInput) detailBodyInput.addEventListener('input', saveCard);
-            if (detailButtonTextInput) detailButtonTextInput.addEventListener('input', saveCard);
-            if (detailImageCaptionInput) detailImageCaptionInput.addEventListener('input', saveCard);
-            if (iconInput) iconInput.addEventListener('input', saveCard);
-            if (linkInput) linkInput.addEventListener('input', saveCard);
-            if (activeInput) activeInput.addEventListener('change', saveCard);
+            if (titleInput) titleInput.addEventListener('input', markCardDirty);
+            if (descriptionInput) descriptionInput.addEventListener('input', markCardDirty);
+            if (detailTitleInput) detailTitleInput.addEventListener('input', markCardDirty);
+            if (detailSubtitleInput) detailSubtitleInput.addEventListener('input', markCardDirty);
+            if (detailBodyInput) detailBodyInput.addEventListener('input', markCardDirty);
+            if (detailButtonTextInput) detailButtonTextInput.addEventListener('input', markCardDirty);
+            if (detailImageCaptionInput) detailImageCaptionInput.addEventListener('input', markCardDirty);
+            if (iconInput) iconInput.addEventListener('input', markCardDirty);
+            if (linkInput) linkInput.addEventListener('input', markCardDirty);
+            if (activeInput) activeInput.addEventListener('change', markCardDirty);
             if (detailEnabledInput instanceof HTMLInputElement) {
                 detailEnabledInput.addEventListener('change', () => {
                     if (detailFieldsWrap instanceof HTMLElement) {
                         detailFieldsWrap.hidden = !detailEnabledInput.checked;
                     }
-                    saveCard();
+                    markCardDirty();
                 });
             }
 
@@ -1088,6 +1052,173 @@
                 } catch (e) {
                     setIndicator('is-error', 'Erro ao salvar');
                 }
+            });
+        }
+
+        const saveAll = async () => {
+            if (!csrfToken) return;
+            const hasAnyChanges =
+                dirtySettings.size > 0 ||
+                dirtyCarouselItems.size > 0 ||
+                dirtyCardItems.size > 0 ||
+                carouselOrderDirty ||
+                cardsOrderDirty;
+
+            if (!hasAnyChanges) {
+                setIndicator(null, 'Nada para salvar');
+                return;
+            }
+
+            if (saveAllButton instanceof HTMLButtonElement) {
+                saveAllButton.disabled = true;
+            }
+
+            setIndicator('is-saving', 'Salvando…');
+
+            try {
+                if (dirtySettings.size > 0) {
+                    const payload = {};
+                    dirtySettings.forEach((value, key) => {
+                        payload[key] = value;
+                    });
+                    await fetchJson('/admin/home', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify(payload),
+                    });
+                }
+
+                for (const itemId of Array.from(dirtyCarouselItems)) {
+                    const itemEl = root.querySelector(`[data-carousel-item][data-id="${itemId}"]`);
+                    if (!itemEl) {
+                        dirtyCarouselItems.delete(itemId);
+                        continue;
+                    }
+                    const titleInput = itemEl.querySelector('[data-carousel-title]');
+                    const subtitleInput = itemEl.querySelector('[data-carousel-subtitle]');
+                    const buttonTextInput = itemEl.querySelector('[data-carousel-button-text]');
+                    const buttonUrlInput = itemEl.querySelector('[data-carousel-button-url]');
+                    const activeInput = itemEl.querySelector('[data-carousel-active]');
+
+                    await fetchJson(`/admin/home/carousel/${itemId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            title: titleInput ? titleInput.value : '',
+                            subtitle: subtitleInput ? subtitleInput.value : '',
+                            button_text: buttonTextInput ? buttonTextInput.value : '',
+                            button_url: buttonUrlInput ? buttonUrlInput.value : '',
+                            is_active: activeInput ? !!activeInput.checked : true,
+                        }),
+                    });
+
+                    dirtyCarouselItems.delete(itemId);
+                }
+
+                for (const cardId of Array.from(dirtyCardItems)) {
+                    const itemEl = root.querySelector(`[data-card-item][data-id="${cardId}"]`);
+                    if (!itemEl) {
+                        dirtyCardItems.delete(cardId);
+                        continue;
+                    }
+
+                    const titleInput = itemEl.querySelector('[data-card-title]');
+                    const descriptionInput = itemEl.querySelector('[data-card-description]');
+                    const detailTitleInput = itemEl.querySelector('[data-card-detail-title]');
+                    const detailSubtitleInput = itemEl.querySelector('[data-card-detail-subtitle]');
+                    const detailBodyInput = itemEl.querySelector('[data-card-detail-body]');
+                    const detailButtonTextInput = itemEl.querySelector('[data-card-detail-button-text]');
+                    const detailImageCaptionInput = itemEl.querySelector('[data-card-detail-image-caption]');
+                    const detailEnabledInput = itemEl.querySelector('[data-card-detail-enabled]');
+                    const iconInput = itemEl.querySelector('[data-card-icon]');
+                    const linkInput = itemEl.querySelector('[data-card-link]');
+                    const activeInput = itemEl.querySelector('[data-card-active]');
+
+                    await fetchJson(`/admin/home/cards/${cardId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            title: titleInput ? titleInput.value : '',
+                            description: descriptionInput ? descriptionInput.value : '',
+                            detail_enabled: detailEnabledInput ? !!detailEnabledInput.checked : false,
+                            detail_title: detailTitleInput ? detailTitleInput.value : '',
+                            detail_subtitle: detailSubtitleInput ? detailSubtitleInput.value : '',
+                            detail_body: detailBodyInput ? detailBodyInput.value : '',
+                            detail_image_path: itemEl.getAttribute('data-detail-image-path') || '',
+                            detail_image_caption: detailImageCaptionInput ? detailImageCaptionInput.value : '',
+                            detail_button_text: detailButtonTextInput ? detailButtonTextInput.value : '',
+                            icon: iconInput ? iconInput.value : '',
+                            link_url: linkInput ? linkInput.value : '',
+                            is_active: activeInput ? !!activeInput.checked : true,
+                        }),
+                    });
+
+                    dirtyCardItems.delete(cardId);
+                }
+
+                if (carouselOrderDirty) {
+                    const ids = collectIds('[data-carousel-item]');
+                    if (ids.length > 0) {
+                        await fetchJson('/admin/home/carousel/reorder', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Accept: 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                            },
+                            body: JSON.stringify({ ids }),
+                        });
+                    }
+                    carouselOrderDirty = false;
+                }
+
+                if (cardsOrderDirty) {
+                    const ids = collectIds('[data-card-item]');
+                    if (ids.length > 0) {
+                        await fetchJson('/admin/home/cards/reorder', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Accept: 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                            },
+                            body: JSON.stringify({ ids }),
+                        });
+                    }
+                    cardsOrderDirty = false;
+                }
+
+                settingInputs.forEach((input) => {
+                    input.setAttribute('data-initial', input.value || '');
+                });
+                dirtySettings.clear();
+
+                setIndicator('is-saved', 'Salvo');
+            } catch (e) {
+                setIndicator('is-error', 'Erro ao salvar');
+            } finally {
+                if (saveAllButton instanceof HTMLButtonElement) {
+                    saveAllButton.disabled = false;
+                }
+            }
+        };
+
+        if (saveAllButton instanceof HTMLButtonElement) {
+            saveAllButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                saveAll();
             });
         }
     };

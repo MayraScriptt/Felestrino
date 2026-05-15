@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 
 class AboutCompanyController extends Controller
@@ -24,12 +25,15 @@ class AboutCompanyController extends Controller
             $loadErrors[] = 'Não foi possível carregar a página "Sobre a empresa". Verifique o banco de dados e as migrations.';
             $aboutPage = new AboutPage([
                 'content' => null,
+                'banner_path' => null,
+                'banner_subtitle' => null,
+                'banner_description' => null,
                 'media_positions' => [],
             ]);
         }
 
         return view('admin.sobre_a_empresa.edit', [
-            'title' => 'Sobre_a_empresa',
+            'title' => 'Sobre a empresa',
             'aboutPage' => $aboutPage,
             'loadErrors' => $loadErrors,
         ]);
@@ -40,15 +44,42 @@ class AboutCompanyController extends Controller
         $payload = $request->validate([
             'content' => ['nullable', 'string'],
             'media_positions' => ['sometimes', 'array'],
+            'banner_file' => ['sometimes', 'nullable', 'file', 'mimes:jpeg,png,jpg,webp,gif', 'max:5120'],
+            'banner_remove' => ['sometimes', 'nullable', 'boolean'],
+            'banner_subtitle' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'banner_description' => ['sometimes', 'nullable', 'string'],
         ]);
 
         $aboutPage = $this->getOrCreateAboutPage();
+        $oldBannerPath = $aboutPage->banner_path;
+        $nextBannerPath = $oldBannerPath;
+
+        $removeRequested = array_key_exists('banner_remove', $payload) ? (bool) $payload['banner_remove'] : false;
+
+        if ($request->hasFile('banner_file')) {
+            $bannerFile = $request->file('banner_file');
+            if ($bannerFile instanceof UploadedFile) {
+                $nextBannerPath = $this->storeOptimizedImage($bannerFile, 'imagens/banners/sobre');
+                if (is_string($oldBannerPath) && trim($oldBannerPath) !== '' && $oldBannerPath !== $nextBannerPath) {
+                    $this->deleteImage($oldBannerPath);
+                }
+            }
+        } elseif ($removeRequested) {
+            if (is_string($oldBannerPath) && trim($oldBannerPath) !== '') {
+                $this->deleteImage($oldBannerPath);
+            }
+            $nextBannerPath = null;
+        }
+
         $nextMediaPositions = array_key_exists('media_positions', $payload)
             ? $this->normalizeMediaPositions($payload['media_positions'])
             : $aboutPage->media_positions;
 
         $aboutPage->update([
             'content' => array_key_exists('content', $payload) ? $payload['content'] : null,
+            'banner_path' => $nextBannerPath,
+            'banner_subtitle' => array_key_exists('banner_subtitle', $payload) ? ($payload['banner_subtitle'] ?: null) : $aboutPage->banner_subtitle,
+            'banner_description' => array_key_exists('banner_description', $payload) ? ($payload['banner_description'] ?: null) : $aboutPage->banner_description,
             'media_positions' => $nextMediaPositions,
         ]);
 
@@ -110,6 +141,9 @@ class AboutCompanyController extends Controller
 
         return AboutPage::query()->create([
             'content' => null,
+            'banner_path' => null,
+            'banner_subtitle' => null,
+            'banner_description' => null,
             'media_positions' => [],
         ]);
     }
@@ -161,5 +195,116 @@ class AboutCompanyController extends Controller
         }
 
         return $value;
+    }
+
+    private function storeOptimizedImage(UploadedFile $file, string $relativeDir): string
+    {
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+        $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        if (! in_array($extension, $allowed, true)) {
+            $extension = 'jpg';
+        }
+
+        $gdAvailable = function_exists('imagecreatefromjpeg')
+            && function_exists('imagescale')
+            && function_exists('imagewebp');
+
+        $relativeDir = trim($relativeDir, '/\\');
+        if ($relativeDir === '') {
+            $relativeDir = 'imagens/banners';
+        }
+        $absoluteDir = public_path($relativeDir);
+        if (! is_dir($absoluteDir)) {
+            @mkdir($absoluteDir, 0755, true);
+        }
+
+        $baseName = pathinfo((string) $file->getClientOriginalName(), PATHINFO_FILENAME);
+        $slug = Str::slug($baseName);
+        if ($slug === '') {
+            $slug = 'banner';
+        }
+        $unique = Str::lower(Str::random(10));
+
+        if (! $gdAvailable || $extension === 'gif') {
+            $fileName = "{$slug}-{$unique}.{$extension}";
+            $file->move($absoluteDir, $fileName);
+
+            return $relativeDir.'/'.$fileName;
+        }
+
+        $tmpPath = $file->getRealPath();
+        if (! is_string($tmpPath) || $tmpPath === '') {
+            $fileName = "{$slug}-{$unique}.{$extension}";
+            $file->move($absoluteDir, $fileName);
+
+            return $relativeDir.'/'.$fileName;
+        }
+
+        $info = @getimagesize($tmpPath);
+        if (! is_array($info) || ! isset($info[0], $info[1], $info['mime'])) {
+            $fileName = "{$slug}-{$unique}.{$extension}";
+            $file->move($absoluteDir, $fileName);
+
+            return $relativeDir.'/'.$fileName;
+        }
+
+        $mime = (string) $info['mime'];
+        $src = null;
+        if ($mime === 'image/jpeg') {
+            $src = @imagecreatefromjpeg($tmpPath);
+        } elseif ($mime === 'image/png') {
+            $src = @imagecreatefrompng($tmpPath);
+        } elseif ($mime === 'image/webp') {
+            $src = @imagecreatefromwebp($tmpPath);
+        }
+
+        if (! $src) {
+            $fileName = "{$slug}-{$unique}.{$extension}";
+            $file->move($absoluteDir, $fileName);
+
+            return $relativeDir.'/'.$fileName;
+        }
+
+        $maxWidth = 1920;
+        $width = (int) $info[0];
+        $targetWidth = $width > $maxWidth ? $maxWidth : $width;
+        $scaled = $src;
+        if ($targetWidth !== $width) {
+            $scaled = imagescale($src, $targetWidth);
+        }
+
+        $fileName = "{$slug}-{$unique}.webp";
+        $targetFullPath = $absoluteDir.DIRECTORY_SEPARATOR.$fileName;
+
+        $ok = @imagewebp($scaled, $targetFullPath, 82);
+        if (is_resource($src) || (is_object($src) && get_class($src) === 'GdImage')) {
+            @imagedestroy($src);
+        }
+        if ((is_resource($scaled) || (is_object($scaled) && get_class($scaled) === 'GdImage')) && $scaled !== $src) {
+            @imagedestroy($scaled);
+        }
+
+        if (! $ok) {
+            $fallbackName = "{$slug}-{$unique}.{$extension}";
+            $file->move($absoluteDir, $fallbackName);
+
+            return $relativeDir.'/'.$fallbackName;
+        }
+
+        return $relativeDir.'/'.$fileName;
+    }
+
+    private function deleteImage(string $path): void
+    {
+        if (str_starts_with($path, 'imagens/') || str_starts_with($path, 'images/')) {
+            $fullPath = public_path($path);
+            if (is_file($fullPath)) {
+                @unlink($fullPath);
+            }
+
+            return;
+        }
+
+        Storage::disk('public')->delete($path);
     }
 }

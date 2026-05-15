@@ -192,7 +192,10 @@
 
     <div class="admin-pages-head">
         <h1>Home</h1>
-        <div class="admin-autosave" data-autosave-indicator>Pronto</div>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;justify-content:flex-end;">
+            <button class="btn" type="button" data-home-save-all>Salvar</button>
+            <div class="admin-autosave" data-autosave-indicator>Pronto</div>
+        </div>
     </div>
 
     <section data-home-admin data-home-tabs>

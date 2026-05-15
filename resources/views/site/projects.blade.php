@@ -1,11 +1,53 @@
 @extends('layouts.site')
 
 @section('content')
+    @php
+        $resolveBannerSrc = static function (?string $path): ?string {
+            $path = is_string($path) ? trim($path) : '';
+            if ($path === '') {
+                return null;
+            }
+            if (str_starts_with($path, 'imagens/') || str_starts_with($path, 'images/')) {
+                return asset($path);
+            }
+            return asset('storage/'.$path);
+        };
+        $bannerSrc = $resolveBannerSrc($projectPage->banner_path ?? null);
+    @endphp
+
     <style>
         .projects-hero {
             background: linear-gradient(155deg, #0d1b3e 0%, #13285f 100%);
             color: #fff;
             padding: clamp(2.4rem, 7vw, 4.8rem) 0;
+        }
+
+        .projects-hero.projects-hero--banner {
+            position: relative;
+            overflow: hidden;
+            background: #0d1b3e;
+        }
+
+        .projects-hero.projects-hero--banner::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: var(--projects-banner);
+            background-size: cover;
+            background-position: center;
+            transform: scale(1.02);
+        }
+
+        .projects-hero.projects-hero--banner::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(13, 27, 62, 0.25), rgba(13, 27, 62, 0.88));
+        }
+
+        .projects-hero .container {
+            position: relative;
+            z-index: 2;
         }
 
         .projects-hero h1 {
@@ -95,7 +137,10 @@
         }
     </style>
 
-    <section class="projects-hero">
+    <section
+        class="projects-hero @if ($bannerSrc) projects-hero--banner @endif"
+        @if ($bannerSrc) style="--projects-banner: url('{{ $bannerSrc }}')" @endif
+    >
         <div class="container">
             <h1>{{ $projectPage->title ?: 'Projetos' }}</h1>
             @if ($projectPage?->subtitle)

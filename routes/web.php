@@ -47,5 +47,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/projetos/cards/{project}/imagens', [ProjectController::class, 'imageStore'])->name('projects.images.store');
         Route::put('/projetos/cards/{project}/imagens/{image}', [ProjectController::class, 'imageUpdate'])->name('projects.images.update');
         Route::delete('/projetos/cards/{project}/imagens/{image}', [ProjectController::class, 'imageDestroy'])->name('projects.images.destroy');
+        Route::post('/projetos/cards/{project}/imagens/reorder', [ProjectController::class, 'mediaReorder'])->name('projects.images.reorder');
     });
 });

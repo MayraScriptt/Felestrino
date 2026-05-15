@@ -11,6 +11,9 @@ class AboutPage extends Model
 
     protected $fillable = [
         'content',
+        'banner_path',
+        'banner_subtitle',
+        'banner_description',
         'media_positions',
     ];
 

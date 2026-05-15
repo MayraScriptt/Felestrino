@@ -1,28 +1,244 @@
 @extends('layouts.admin')
 
 @section('content')
-    <article class="admin-surface">
-        <div class="admin-section-head">
-            <div>
-                <div class="admin-section-kicker">Página institucional</div>
-                <h2>Sobre a empresa</h2>
+    <style>
+        .admin-home-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .5rem;
+            margin-bottom: .85rem;
+            padding-bottom: .75rem;
+            border-bottom: 1px solid rgba(13, 27, 62, 0.08);
+        }
+
+        .admin-home-tab-btn {
+            appearance: none;
+            border: 1px solid rgba(13, 27, 62, 0.16);
+            border-radius: .45rem;
+            background: #fff;
+            color: #0d1b3e;
+            padding: .5rem .75rem;
+            font-family: "Rajdhani", sans-serif;
+            font-size: .8rem;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all .18s ease;
+        }
+
+        .admin-home-tab-btn:hover,
+        .admin-home-tab-btn:focus-visible {
+            border-color: rgba(184, 144, 42, 0.45);
+            color: #142150;
+        }
+
+        .admin-home-tab-btn.is-active {
+            border-color: rgba(184, 144, 42, 0.75);
+            background: linear-gradient(180deg, #f8e5ba, #edd18e);
+            color: #08112a;
+        }
+
+        .admin-home-tab-panel[hidden] {
+            display: none !important;
+        }
+
+        .admin-home-tab-panel {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .admin-title-banner {
+            width: 100%;
+            border-radius: .8rem;
+            overflow: hidden;
+            border: 1px solid rgba(13, 27, 62, 0.12);
+            background: linear-gradient(180deg, rgba(20, 33, 80, 0.12), rgba(184, 144, 42, 0.10));
+            position: relative;
+        }
+
+        .admin-title-banner img {
+            width: 100%;
+            height: auto;
+            display: block;
+            aspect-ratio: 21 / 7;
+            object-fit: cover;
+        }
+
+        .admin-banner-remove-btn {
+            appearance: none;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            background: rgba(8, 17, 42, 0.6);
+            color: #ffffff;
+            width: 38px;
+            height: 38px;
+            border-radius: 999px;
+            position: absolute;
+            top: .65rem;
+            right: .65rem;
+            display: grid;
+            place-items: center;
+            font-size: 1.25rem;
+            line-height: 1;
+            cursor: pointer;
+            transition: transform .12s ease, filter .2s ease, background-color .2s ease, border-color .2s ease;
+            z-index: 2;
+        }
+
+        .admin-banner-remove-btn:hover,
+        .admin-banner-remove-btn:focus-visible {
+            filter: brightness(1.05);
+            border-color: rgba(212, 171, 74, 0.65);
+        }
+
+        .admin-title-banner.is-marked img {
+            filter: grayscale(1);
+            opacity: .72;
+        }
+
+        .admin-title-banner.is-marked .admin-banner-remove-btn {
+            background: rgba(153, 27, 27, 0.72);
+            border-color: rgba(255, 255, 255, 0.55);
+        }
+
+        .admin-banner-remove-hint {
+            font-size: .86rem;
+            color: rgba(13, 27, 62, 0.78);
+            margin-top: .6rem;
+            padding: .6rem .75rem;
+            border-radius: .65rem;
+            background: rgba(184, 144, 42, 0.12);
+            border: 1px solid rgba(184, 144, 42, 0.22);
+        }
+
+        @media (max-width: 768px) {
+            .admin-title-banner img {
+                aspect-ratio: 16 / 9;
+            }
+        }
+    </style>
+
+    <div class="admin-pages-head">
+        <h1>Sobre a empresa</h1>
+        <button class="btn" type="submit" form="about-company-form">Salvar</button>
+    </div>
+
+    @php
+        $resolveBannerSrc = static function (?string $path): ?string {
+            $path = is_string($path) ? trim($path) : '';
+            if ($path === '') {
+                return null;
+            }
+            if (str_starts_with($path, 'imagens/') || str_starts_with($path, 'images/')) {
+                return asset($path);
+            }
+            return asset('storage/'.$path);
+        };
+        $bannerSrc = $resolveBannerSrc($aboutPage->banner_path ?? null);
+    @endphp
+
+    <form id="about-company-form" action="{{ route('admin.about-company.update') }}" method="POST" enctype="multipart/form-data">
+        @csrf
+        @method('PUT')
+
+        <section data-admin-tabs="about">
+            <div class="admin-home-tabs" role="tablist" aria-label="Seções da página">
+                <button class="admin-home-tab-btn is-active" type="button" role="tab" aria-selected="true" data-admin-tab-trigger data-target="conteudo">Conteúdo</button>
+                <button class="admin-home-tab-btn" type="button" role="tab" aria-selected="false" data-admin-tab-trigger data-target="banner">Banner</button>
             </div>
-            <button class="btn" type="submit" form="about-company-form">Salvar</button>
-        </div>
 
-        <form id="about-company-form" action="{{ route('admin.about-company.update') }}" method="POST">
-            @csrf
-            @method('PUT')
+            <div class="admin-home-tab-panel" role="tabpanel" data-admin-tab-panel="conteudo">
+                <article class="admin-surface">
+                    <div class="admin-section-head">
+                        <div>
+                            <div class="admin-section-kicker">Página institucional</div>
+                            <h2>Conteúdo</h2>
+                        </div>
+                    </div>
 
-            <label>Conteúdo
-                <textarea id="about-company-editor" name="content" rows="18">{{ old('content', $aboutPage->content ?? '') }}</textarea>
-            </label>
-        </form>
-    </article>
+                    <label>Texto
+                        <textarea id="about-company-editor" name="content" rows="18">{{ old('content', $aboutPage->content ?? '') }}</textarea>
+                    </label>
+                </article>
+            </div>
+
+            <div class="admin-home-tab-panel" role="tabpanel" data-admin-tab-panel="banner" hidden>
+                <article class="admin-surface">
+                    <div class="admin-section-head">
+                        <div>
+                            <div class="admin-section-kicker">Página institucional</div>
+                            <h2>Banner do título</h2>
+                        </div>
+                    </div>
+
+                    @if ($bannerSrc)
+                        <div class="admin-title-banner" data-banner-root>
+                            <img src="{{ $bannerSrc }}" alt="" loading="lazy" decoding="async">
+                            <button class="admin-banner-remove-btn" type="button" data-banner-remove aria-label="Remover banner">×</button>
+                        </div>
+                        <input type="hidden" name="banner_remove" value="0" data-banner-remove-input>
+                        <div class="admin-banner-remove-hint" data-banner-hint hidden>Salve para que o banner seja excluído</div>
+                    @endif
+
+                    <label>Imagem do banner (opcional)
+                        <input type="file" name="banner_file" accept=".jpg,.jpeg,.png,.webp,.gif">
+                    </label>
+
+                    <label>Subtítulo do banner
+                        <input type="text" name="banner_subtitle" maxlength="255" value="{{ old('banner_subtitle', $aboutPage->banner_subtitle ?? '') }}">
+                    </label>
+
+                    <label>Descrição do banner
+                        <textarea name="banner_description" rows="3">{{ old('banner_description', $aboutPage->banner_description ?? '') }}</textarea>
+                    </label>
+                </article>
+            </div>
+        </section>
+    </form>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            var bannerRoot = document.querySelector('[data-banner-root]');
+            var bannerRemoveBtn = document.querySelector('[data-banner-remove]');
+            var bannerRemoveInput = document.querySelector('[data-banner-remove-input]');
+            var bannerHint = document.querySelector('[data-banner-hint]');
+
+            var tabRoot = document.querySelector('[data-admin-tabs="about"]');
+            if (tabRoot) {
+                var buttons = tabRoot.querySelectorAll('[data-admin-tab-trigger]');
+                var panels = tabRoot.querySelectorAll('[data-admin-tab-panel]');
+
+                function activateTab(target) {
+                    buttons.forEach(function (button) {
+                        var active = button.getAttribute('data-target') === target;
+                        button.classList.toggle('is-active', active);
+                        button.setAttribute('aria-selected', active ? 'true' : 'false');
+                    });
+
+                    panels.forEach(function (panel) {
+                        var visible = panel.getAttribute('data-admin-tab-panel') === target;
+                        panel.hidden = !visible;
+                    });
+                }
+
+                buttons.forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        activateTab(button.getAttribute('data-target'));
+                    });
+                });
+            }
+
+            if (bannerRoot && bannerRemoveBtn && bannerRemoveInput) {
+                bannerRemoveBtn.addEventListener('click', function () {
+                    var marked = bannerRoot.classList.toggle('is-marked');
+                    bannerRemoveInput.value = marked ? '1' : '0';
+                    if (bannerHint) {
+                        bannerHint.hidden = !marked;
+                    }
+                });
+            }
+
             if (!window.tinymce) {
                 return;
             }

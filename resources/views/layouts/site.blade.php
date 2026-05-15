@@ -49,9 +49,17 @@
             color: #d4ab4a;
             border-radius: 4px;
             background: rgba(184, 144, 42, 0.08);
-            font-family: "Bebas Neue", sans-serif;
-            font-size: 1.3rem;
-            letter-spacing: .06em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .site-tone .brand-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: inherit;
         }
 
         .site-tone nav a {
@@ -221,7 +229,9 @@
     <header class="site-header">
         <div class="container header-inner">
             <a href="{{ route('site.home') }}" class="brand">
-                <span class="brand-icon">F</span>
+                <span class="brand-icon" aria-hidden="true">
+                    <img src="{{ asset('imagens/logo.png') }}" alt="" width="40" height="40" decoding="async">
+                </span>
                 <span>
                     <strong>{{ $settings['company_name'] ?? 'Felestrino Soluções' }}</strong>
                     <small>{{ $settings['tagline'] ?? '' }}</small>

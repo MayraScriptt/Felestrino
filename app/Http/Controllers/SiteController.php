@@ -51,7 +51,7 @@ class SiteController extends Controller
             if ($slug === 'sobre') {
                 $aboutPage = AboutPage::query()->first();
                 $page = new Page([
-                    'title' => 'Sobre',
+                    'title' => 'Sobre a empresa',
                     'slug' => 'sobre',
                     'content' => $aboutPage?->content ?? '',
                     'is_published' => true,
@@ -61,6 +61,9 @@ class SiteController extends Controller
                     'settings' => $this->settings(),
                     'page' => $page,
                     'allowHtml' => true,
+                    'banner_path' => $aboutPage?->banner_path,
+                    'banner_subtitle' => $aboutPage?->banner_subtitle,
+                    'banner_description' => $aboutPage?->banner_description,
                 ];
             }
 
