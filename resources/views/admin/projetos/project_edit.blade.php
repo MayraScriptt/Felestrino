@@ -268,12 +268,6 @@
         </div>
     </div>
 
-    @if ($bannerSrc)
-        <div class="admin-title-banner" style="margin-bottom:.9rem;">
-            <img src="{{ $bannerSrc }}" alt="" loading="lazy" decoding="async">
-        </div>
-    @endif
-
     <section data-admin-tabs="project">
         <div class="admin-home-tabs" role="tablist" aria-label="Seções do projeto">
             <button class="admin-home-tab-btn is-active" type="button" role="tab" aria-selected="true" data-admin-tab-trigger data-target="dados">Dados</button>
@@ -293,9 +287,6 @@
                 <form id="project-main-form" class="admin-form" action="{{ route('admin.projects.cards.update', $project) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
-                    <label>Banner do título (opcional)
-                        <input type="file" name="banner_file" accept=".jpg,.jpeg,.png,.webp,.gif">
-                    </label>
                     <label>Título
                         <input type="text" name="title" maxlength="140" value="{{ $project->title }}" required>
                     </label>
@@ -335,8 +326,18 @@
 
                     <form id="project-image-create-form" class="admin-form" action="{{ route('admin.projects.images.store', $project) }}" method="POST" enctype="multipart/form-data">
                         @csrf
-                        <label>Arquivo de imagem
-                            <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp" required>
+                        <label class="admin-dropzone-field">Arquivo de imagem
+                            <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.gif" required hidden>
+                            <div class="admin-dropzone" data-admin-dropzone>
+                                <div class="admin-dropzone__area" data-dropzone-area>
+                                    <div class="admin-dropzone__head">
+                                        <div class="admin-dropzone__title">Arraste e solte a imagem aqui</div>
+                                        <div class="admin-dropzone__subtitle">ou clique para selecionar <span data-dropzone-count></span></div>
+                                    </div>
+                                    <div class="admin-dropzone__meta" data-dropzone-meta></div>
+                                </div>
+                                <div class="admin-dropzone__previews" data-dropzone-previews></div>
+                            </div>
                         </label>
                         <label>Descrição da imagem
                             <input type="text" name="description" maxlength="255" placeholder="Descrição exibida abaixo da foto">

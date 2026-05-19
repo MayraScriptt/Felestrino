@@ -117,7 +117,7 @@ class HomeController extends Controller
     public function carouselStore(Request $request): JsonResponse
     {
         $payload = $request->validate([
-            'file' => ['required', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            'file' => ['required', 'file', 'mimes:jpeg,png,jpg,webp,gif', 'max:5120'],
             'title' => ['nullable', 'string', 'max:100'],
             'subtitle' => ['nullable', 'string', 'max:255'],
             'link_url' => ['nullable', 'string', 'url', 'max:2048', 'starts_with:http://,https://'],
@@ -423,7 +423,7 @@ class HomeController extends Controller
     public function cardDetailImageStore(Request $request, HomeCard $card): JsonResponse
     {
         $payload = $request->validate([
-            'file' => ['required', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            'file' => ['required', 'file', 'mimes:jpeg,png,jpg,webp,gif', 'max:5120'],
         ]);
 
         /** @var UploadedFile $file */

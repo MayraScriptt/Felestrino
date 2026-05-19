@@ -180,8 +180,18 @@
                         <div class="admin-banner-remove-hint" data-banner-hint hidden>Salve para que o banner seja excluído</div>
                     @endif
 
-                    <label>Imagem do banner (opcional)
-                        <input type="file" name="banner_file" accept=".jpg,.jpeg,.png,.webp,.gif">
+                    <label class="admin-dropzone-field">Imagem do banner (opcional)
+                        <input type="file" name="banner_file" accept=".jpg,.jpeg,.png,.webp,.gif" hidden>
+                        <div class="admin-dropzone" data-admin-dropzone data-preview-size="banner">
+                            <div class="admin-dropzone__area" data-dropzone-area>
+                                <div class="admin-dropzone__head">
+                                    <div class="admin-dropzone__title">Arraste e solte a imagem aqui</div>
+                                    <div class="admin-dropzone__subtitle">ou clique para selecionar <span data-dropzone-count></span></div>
+                                </div>
+                                <div class="admin-dropzone__meta" data-dropzone-meta></div>
+                            </div>
+                            <div class="admin-dropzone__previews" data-dropzone-previews></div>
+                        </div>
                     </label>
 
                     <label>Subtítulo do banner

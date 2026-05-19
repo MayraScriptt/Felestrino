@@ -193,12 +193,11 @@
     <div class="admin-pages-head">
         <h1>Home</h1>
         <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;justify-content:flex-end;">
-            <button class="btn" type="button" data-home-save-all>Salvar</button>
-            <div class="admin-autosave" data-autosave-indicator>Pronto</div>
+            <button class="btn" type="submit" form="home-form" data-home-save-all>Salvar</button>
         </div>
     </div>
 
-    <section data-home-admin data-home-tabs>
+    <form id="home-form" data-home-admin data-home-tabs>
         <div class="admin-home-tabs" role="tablist" aria-label="Seções da Home">
             <button class="admin-home-tab-btn is-active" type="button" role="tab" aria-selected="true" data-home-tab-trigger data-target="banner">Banner</button>
             <button class="admin-home-tab-btn" type="button" role="tab" aria-selected="false" data-home-tab-trigger data-target="cards">Cards</button>
@@ -235,9 +234,20 @@
                     </div>
                 </div>
                 <div class="admin-home-upload">
-                    <input type="file" accept=".jpg,.jpeg,.png,.webp" data-home-carousel-file>
-                    <button class="btn" type="button" data-home-carousel-upload>Adicionar imagem</button>
-                    <div class="admin-home-upload__hint">JPEG/PNG/WebP • máx. 5MB • recomendado: 1920×1080 (16:9) • otimização automática</div>
+                    <label class="admin-dropzone-field">Imagem do banner
+                        <input type="file" accept=".jpg,.jpeg,.png,.webp,.gif" data-home-carousel-file hidden>
+                        <div class="admin-dropzone" data-admin-dropzone data-preview-size="banner">
+                            <div class="admin-dropzone__area" data-dropzone-area>
+                                <div class="admin-dropzone__head">
+                                    <div class="admin-dropzone__title">Arraste e solte a imagem aqui</div>
+                                    <div class="admin-dropzone__subtitle">ou clique para selecionar <span data-dropzone-count></span></div>
+                                </div>
+                                <div class="admin-dropzone__meta" data-dropzone-meta></div>
+                            </div>
+                            <div class="admin-dropzone__previews" data-dropzone-previews></div>
+                        </div>
+                    </label>
+                    <div class="admin-home-upload__hint">JPG/PNG/GIF/WebP • máx. 5MB • recomendado: 1920×1080 (16:9) • otimização automática</div>
                 </div>
 
                 <div class="admin-home-list" data-home-carousel-list>
@@ -463,7 +473,7 @@
                 </article>
             </div>
         @endif
-    </section>
+    </form>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {

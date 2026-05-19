@@ -81,7 +81,7 @@ class ProjectController extends Controller
         return redirect()->route('admin.projects.edit')->with('status', 'Página de projetos atualizada com sucesso.');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:140'],
@@ -105,6 +105,18 @@ class ProjectController extends Controller
         ]);
 
         SiteCache::bump();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'project' => [
+                    'id' => $project->id,
+                    'title' => $project->title,
+                    'slug' => $project->slug,
+                    'edit_url' => route('admin.projects.project.edit', $project),
+                ],
+            ]);
+        }
 
         return redirect()->route('admin.projects.project.edit', $project)->with('status', 'Projeto criado com sucesso.');
     }
@@ -185,10 +197,10 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function imageStore(Request $request, Project $project): RedirectResponse
+    public function imageStore(Request $request, Project $project): RedirectResponse|JsonResponse
     {
         $payload = $request->validate([
-            'file' => ['sometimes', 'nullable', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            'file' => ['sometimes', 'nullable', 'file', 'mimes:jpeg,png,jpg,webp,gif', 'max:5120'],
             'youtube_url' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'description' => ['nullable', 'string', 'max:255'],
             'display_order' => ['nullable', 'integer', 'min:0', 'max:999999'],
@@ -212,6 +224,13 @@ class ProjectController extends Controller
         } elseif (array_key_exists('youtube_url', $payload) && is_string($payload['youtube_url']) && trim($payload['youtube_url']) !== '') {
             $normalized = $this->normalizeYouTubeUrl($payload['youtube_url']);
             if (! $normalized) {
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => 'Link do YouTube inválido.',
+                        'errors' => ['youtube_url' => ['Link do YouTube inválido.']],
+                    ], 422);
+                }
                 return redirect()
                     ->route('admin.projects.project.edit', $project)
                     ->withErrors(['youtube_url' => 'Link do YouTube inválido.'])
@@ -223,13 +242,20 @@ class ProjectController extends Controller
         }
 
         if (! is_string($type) || $type === '') {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Envie uma imagem ou informe um link do YouTube.',
+                    'errors' => ['file' => ['Envie uma imagem ou informe um link do YouTube.']],
+                ], 422);
+            }
             return redirect()
                 ->route('admin.projects.project.edit', $project)
                 ->withErrors(['file' => 'Envie uma imagem ou informe um link do YouTube.'])
                 ->withInput();
         }
 
-        ProjectMedia::query()->create([
+        $media = ProjectMedia::query()->create([
             'project_id' => $project->id,
             'type' => $type,
             'image_path' => $path,
@@ -241,6 +267,17 @@ class ProjectController extends Controller
         ]);
 
         SiteCache::bump();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'media' => [
+                    'id' => $media->id,
+                    'type' => $media->type,
+                    'display_order' => $media->display_order,
+                ],
+            ]);
+        }
 
         return redirect()->route('admin.projects.project.edit', $project)->with('status', 'Imagem adicionada ao projeto com sucesso.');
     }

@@ -1057,12 +1057,15 @@
 
         const saveAll = async () => {
             if (!csrfToken) return;
+            const hasPendingCarouselUpload =
+                carouselFile instanceof HTMLInputElement && carouselFile.files && carouselFile.files.length > 0;
             const hasAnyChanges =
                 dirtySettings.size > 0 ||
                 dirtyCarouselItems.size > 0 ||
                 dirtyCardItems.size > 0 ||
                 carouselOrderDirty ||
-                cardsOrderDirty;
+                cardsOrderDirty ||
+                hasPendingCarouselUpload;
 
             if (!hasAnyChanges) {
                 setIndicator(null, 'Nada para salvar');
@@ -1076,6 +1079,28 @@
             setIndicator('is-saving', 'Salvando…');
 
             try {
+                if (hasPendingCarouselUpload && carouselFile instanceof HTMLInputElement && carouselFile.files) {
+                    const file = carouselFile.files[0];
+                    if (file) {
+                        const form = new FormData();
+                        form.append('file', file);
+                        const json = await fetchJson('/admin/home/carousel', {
+                            method: 'POST',
+                            headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                            body: form,
+                        });
+                        if (json && json.item && carouselList) {
+                            const el = createCarouselItemEl(json.item);
+                            carouselList.appendChild(el);
+                            bindCarouselItem(el);
+                            setSelectedCarouselItem(el);
+                            if (carouselOrderable && carouselOrderable.refresh) carouselOrderable.refresh();
+                            carouselFile.value = '';
+                            carouselFile.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                }
+
                 if (dirtySettings.size > 0) {
                     const payload = {};
                     dirtySettings.forEach((value, key) => {
@@ -1215,7 +1240,12 @@
             }
         };
 
-        if (saveAllButton instanceof HTMLButtonElement) {
+        if (root instanceof HTMLFormElement) {
+            root.addEventListener('submit', (event) => {
+                event.preventDefault();
+                saveAll();
+            });
+        } else if (saveAllButton instanceof HTMLButtonElement) {
             saveAllButton.addEventListener('click', (event) => {
                 event.preventDefault();
                 saveAll();

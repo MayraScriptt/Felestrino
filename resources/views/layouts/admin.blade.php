@@ -620,6 +620,124 @@
             margin: .2rem 0;
         }
 
+        .admin-dropzone-field {
+            display: grid;
+            gap: .45rem;
+        }
+
+        .admin-dropzone {
+            display: grid;
+            gap: .6rem;
+        }
+
+        .admin-dropzone__area {
+            border-radius: .8rem;
+            border: 1px dashed rgba(13, 27, 62, 0.28);
+            background: rgba(20, 33, 80, 0.03);
+            padding: .9rem;
+            display: grid;
+            gap: .6rem;
+            align-content: start;
+            cursor: pointer;
+            transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease;
+        }
+
+        .admin-dropzone__area:focus-visible {
+            outline: 0;
+            border-color: rgba(184, 144, 42, 0.7);
+            box-shadow: 0 0 0 3px rgba(184, 144, 42, 0.14);
+        }
+
+        .admin-dropzone.is-dragover .admin-dropzone__area {
+            background: rgba(212, 171, 74, 0.12);
+            border-color: rgba(184, 144, 42, 0.55);
+        }
+
+        .admin-dropzone__head {
+            display: grid;
+            gap: .25rem;
+        }
+
+        .admin-dropzone__title {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .35rem;
+            align-items: baseline;
+            font-family: "DM Sans", sans-serif;
+            font-weight: 700;
+            font-size: .96rem;
+            color: var(--navy);
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .admin-dropzone__subtitle {
+            font-size: .82rem;
+            color: var(--text-muted);
+            text-transform: none;
+            letter-spacing: 0;
+            font-family: "DM Sans", sans-serif;
+            font-weight: 500;
+        }
+
+        .admin-dropzone__meta {
+            font-size: .78rem;
+            color: rgba(13, 27, 62, 0.72);
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .admin-dropzone__errors {
+            border-radius: .65rem;
+            padding: .65rem .75rem;
+            background: var(--error-bg);
+            border: 1px solid #fecaca;
+            color: var(--error-text);
+            font-size: .86rem;
+            font-family: "DM Sans", sans-serif;
+            font-weight: 600;
+            display: grid;
+            gap: .25rem;
+        }
+
+        .admin-dropzone__previews {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+            gap: .65rem;
+        }
+
+        .admin-dropzone__preview {
+            border-radius: .75rem;
+            overflow: hidden;
+            border: 1px solid rgba(13, 27, 62, 0.12);
+            background: #fff;
+            box-shadow: 0 10px 22px rgba(8, 17, 42, 0.06);
+            display: grid;
+        }
+
+        .admin-dropzone__preview img {
+            width: 100%;
+            height: 96px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .admin-dropzone__preview figcaption {
+            padding: .45rem .55rem;
+            font-size: .75rem;
+            color: rgba(13, 27, 62, 0.78);
+            line-height: 1.25;
+            word-break: break-word;
+        }
+
+        .admin-dropzone[data-preview-size="banner"] .admin-dropzone__previews {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .admin-dropzone[data-preview-size="banner"] .admin-dropzone__preview img {
+            height: clamp(170px, 22vw, 240px);
+        }
+
         .admin-body.menu-open .admin-sidebar {
             transform: translateX(0);
         }
@@ -734,7 +852,6 @@
                     ☰
                 </button>
                 <div class="admin-page-info">
-                    <h1>{{ $title ?? 'Painel Administrativo' }}</h1>
                 </div>
             </header>
 
@@ -762,6 +879,7 @@
     </div>
 
     <script src="{{ $jsAsset }}" defer></script>
+    <script src="{{ asset('js/admin-dropzone.js') }}" defer></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var body = document.body;
