@@ -244,6 +244,119 @@
                 justify-content: flex-start;
             }
         }
+
+        .admin-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(8, 17, 42, 0.68);
+            display: grid;
+            place-items: center;
+            padding: 1rem;
+        }
+
+        .admin-modal[hidden] {
+            display: none !important;
+        }
+
+        .admin-modal__panel {
+            width: min(920px, 100%);
+            max-height: calc(100vh - 2rem);
+            overflow: auto;
+            border-radius: .95rem;
+            border: 1px solid rgba(13, 27, 62, 0.14);
+            background: #ffffff;
+            box-shadow: 0 20px 60px rgba(8, 17, 42, 0.28);
+        }
+
+        .admin-modal__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            padding: 1rem 1.1rem;
+            border-bottom: 1px solid rgba(13, 27, 62, 0.08);
+        }
+
+        .admin-modal__title {
+            margin: 0;
+            font-family: "Rajdhani", sans-serif;
+            letter-spacing: .04em;
+        }
+
+        .admin-modal__close {
+            appearance: none;
+            border: 1px solid rgba(13, 27, 62, 0.18);
+            background: rgba(13, 27, 62, 0.04);
+            color: #0d1b3e;
+            width: 40px;
+            height: 40px;
+            border-radius: .65rem;
+            display: grid;
+            place-items: center;
+            font-size: 1.25rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .admin-modal__body {
+            padding: 1rem 1.1rem 1.2rem;
+            display: grid;
+            gap: 1rem;
+        }
+
+        .admin-modal__grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .admin-modal__grid .admin-surface {
+            margin: 0;
+        }
+
+        .admin-modal__status {
+            font-size: .9rem;
+            color: rgba(13, 27, 62, 0.78);
+            padding: .65rem .75rem;
+            border-radius: .65rem;
+            background: rgba(184, 144, 42, 0.10);
+            border: 1px solid rgba(184, 144, 42, 0.18);
+        }
+
+        .admin-modal__uploads {
+            display: grid;
+            gap: .55rem;
+        }
+
+        .admin-modal__uploads-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            padding: .55rem .65rem;
+            border-radius: .65rem;
+            border: 1px solid rgba(13, 27, 62, 0.1);
+            background: rgba(13, 27, 62, 0.02);
+            font-size: .9rem;
+            color: rgba(13, 27, 62, 0.86);
+        }
+
+        .admin-modal__uploads-item strong {
+            font-weight: 700;
+            color: #0d1b3e;
+        }
+
+        .admin-modal__uploads-item span {
+            color: rgba(13, 27, 62, 0.68);
+            white-space: nowrap;
+        }
+
+        @media (max-width: 840px) {
+            .admin-modal__grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 
     @php
@@ -270,12 +383,11 @@
 
     <section data-admin-tabs="project">
         <div class="admin-home-tabs" role="tablist" aria-label="Seções do projeto">
-            <button class="admin-home-tab-btn is-active" type="button" role="tab" aria-selected="true" data-admin-tab-trigger data-target="dados">Dados</button>
-            <button class="admin-home-tab-btn" type="button" role="tab" aria-selected="false" data-admin-tab-trigger data-target="adicionar">Adicionar mídia</button>
-            <button class="admin-home-tab-btn" type="button" role="tab" aria-selected="false" data-admin-tab-trigger data-target="itens">Mídias</button>
+            <button class="admin-home-tab-btn is-active" type="button" role="tab" aria-selected="true" data-admin-tab-trigger data-target="itens">Mídias</button>
+            <button class="admin-home-tab-btn" type="button" role="tab" aria-selected="false" data-admin-tab-trigger data-target="dados">Dados</button>
         </div>
 
-        <div class="admin-home-tab-panel" role="tabpanel" data-admin-tab-panel="dados">
+        <div class="admin-home-tab-panel" role="tabpanel" data-admin-tab-panel="dados" hidden>
             <article class="admin-surface">
                 <div class="admin-section-head">
                     <div>
@@ -313,81 +425,14 @@
             </article>
         </div>
 
-        <div class="admin-home-tab-panel" role="tabpanel" data-admin-tab-panel="adicionar" hidden>
-            <div class="project-detail-grid">
-                <article class="admin-surface">
-                    <div class="admin-section-head">
-                        <div>
-                            <div class="admin-section-kicker">Galeria</div>
-                            <h2>Adicionar nova imagem</h2>
-                        </div>
-                        <button class="btn" type="submit" form="project-image-create-form">Adicionar imagem</button>
-                    </div>
-
-                    <form id="project-image-create-form" class="admin-form" action="{{ route('admin.projects.images.store', $project) }}" method="POST" enctype="multipart/form-data">
-                        @csrf
-                        <label class="admin-dropzone-field">Arquivo de imagem
-                            <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.gif" required hidden>
-                            <div class="admin-dropzone" data-admin-dropzone>
-                                <div class="admin-dropzone__area" data-dropzone-area>
-                                    <div class="admin-dropzone__head">
-                                        <div class="admin-dropzone__title">Arraste e solte a imagem aqui</div>
-                                        <div class="admin-dropzone__subtitle">ou clique para selecionar <span data-dropzone-count></span></div>
-                                    </div>
-                                    <div class="admin-dropzone__meta" data-dropzone-meta></div>
-                                </div>
-                                <div class="admin-dropzone__previews" data-dropzone-previews></div>
-                            </div>
-                        </label>
-                        <label>Descrição da imagem
-                            <input type="text" name="description" maxlength="255" placeholder="Descrição exibida abaixo da foto">
-                        </label>
-                        <label>Ordem
-                            <input type="number" name="display_order" min="0" max="999999" placeholder="Ordem opcional">
-                        </label>
-                        <label class="checkbox-line">
-                            <input type="checkbox" name="is_active" value="1" checked>
-                            Imagem ativa
-                        </label>
-                    </form>
-                </article>
-
-                <article class="admin-surface">
-                    <div class="admin-section-head">
-                        <div>
-                            <div class="admin-section-kicker">Vídeo</div>
-                            <h2>Adicionar vídeo do YouTube</h2>
-                        </div>
-                        <button class="btn" type="submit" form="project-youtube-create-form">Adicionar vídeo</button>
-                    </div>
-
-                    <form id="project-youtube-create-form" class="admin-form" action="{{ route('admin.projects.images.store', $project) }}" method="POST">
-                        @csrf
-                        <label>Link do YouTube
-                            <input type="url" name="youtube_url" maxlength="2000" placeholder="https://www.youtube.com/watch?v=..." required>
-                        </label>
-                        <label>Descrição do vídeo
-                            <input type="text" name="description" maxlength="255" placeholder="Descrição exibida abaixo do vídeo">
-                        </label>
-                        <label>Ordem
-                            <input type="number" name="display_order" min="0" max="999999" placeholder="Ordem opcional">
-                        </label>
-                        <label class="checkbox-line">
-                            <input type="checkbox" name="is_active" value="1" checked>
-                            Vídeo ativo
-                        </label>
-                    </form>
-                </article>
-            </div>
-        </div>
-
-        <div class="admin-home-tab-panel" role="tabpanel" data-admin-tab-panel="itens" hidden>
+        <div class="admin-home-tab-panel" role="tabpanel" data-admin-tab-panel="itens">
             <article class="admin-surface">
                 <div class="admin-section-head">
                     <div>
                         <div class="admin-section-kicker">Itens da galeria</div>
                         <h2>Editar mídias e descrições</h2>
                     </div>
+                    <button class="btn" type="button" data-open-add-media>Adicionar mídias</button>
                 </div>
 
                 @if ($project->images->isEmpty())
@@ -470,6 +515,34 @@
         </div>
     </section>
 
+    <div class="admin-modal" data-add-media-modal hidden>
+        <div class="admin-modal__panel" role="dialog" aria-modal="true" aria-label="Adicionar mídias">
+            <div class="admin-modal__head">
+                <h2 class="admin-modal__title">Adicionar mídias</h2>
+                <button class="admin-modal__close" type="button" data-add-media-modal-close aria-label="Fechar">×</button>
+            </div>
+
+            <div class="admin-modal__body">
+                <div class="admin-modal__status" data-add-media-status>Selecione as mídias e envie.</div>
+
+                <div class="admin-modal__grid">
+                    @include('modals._addmidia')
+                </div>
+
+                <div class="admin-surface">
+                    <div class="admin-section-head">
+                        <div>
+                            <div class="admin-section-kicker">Status</div>
+                            <h2>Envios</h2>
+                        </div>
+                        <button class="btn" type="button" data-add-media-finish>Concluir</button>
+                    </div>
+                    <div class="admin-modal__uploads" data-add-media-uploads></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var tabRoot = document.querySelector('[data-admin-tabs="project"]');
@@ -501,8 +574,191 @@
 
             var csrfMeta = document.querySelector('meta[name="csrf-token"]');
             var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+            if (!csrfToken) {
+                return;
+            }
+
+            var addMediaModal = document.querySelector('[data-add-media-modal]');
+            var openAddMediaBtn = document.querySelector('[data-open-add-media]');
+            var closeAddMediaBtn = document.querySelector('[data-add-media-modal-close]');
+            var addMediaStatus = document.querySelector('[data-add-media-status]');
+            var addMediaUploads = document.querySelector('[data-add-media-uploads]');
+            var finishAddMediaBtn = document.querySelector('[data-add-media-finish]');
+
+            var imagesForm = addMediaModal ? addMediaModal.querySelector('[data-project-images-form]') : null;
+            var uploadImagesBtn = addMediaModal ? addMediaModal.querySelector('[data-project-upload-images]') : null;
+            var videoForm = addMediaModal ? addMediaModal.querySelector('[data-project-video-form]') : null;
+            var addVideoBtn = addMediaModal ? addMediaModal.querySelector('[data-project-add-video]') : null;
+
+            var mediaUrl = @json(route('admin.projects.images.store', $project));
+
+            function setAddMediaStatus(text) {
+                if (addMediaStatus) addMediaStatus.textContent = text;
+            }
+
+            function setAddMediaOpen(open) {
+                if (!addMediaModal) return;
+                addMediaModal.hidden = !open;
+                document.documentElement.style.overflow = open ? 'hidden' : '';
+            }
+
+            function appendUploadItem(label, status) {
+                if (!addMediaUploads) return null;
+                var row = document.createElement('div');
+                row.className = 'admin-modal__uploads-item';
+                var left = document.createElement('strong');
+                left.textContent = label;
+                var right = document.createElement('span');
+                right.textContent = status;
+                row.appendChild(left);
+                row.appendChild(right);
+                addMediaUploads.prepend(row);
+                return right;
+            }
+
+            async function postJson(url, payload) {
+                var res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify(payload || {}),
+                });
+                var json = await res.json().catch(function () {
+                    return null;
+                });
+                if (!res.ok) {
+                    var msg = (json && (json.message || json.error)) ? (json.message || json.error) : 'Erro';
+                    throw new Error(msg);
+                }
+                return json;
+            }
+
+            async function postForm(url, formData) {
+                var res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: formData,
+                });
+                var json = await res.json().catch(function () {
+                    return null;
+                });
+                if (!res.ok) {
+                    var msg = (json && (json.message || json.error)) ? (json.message || json.error) : 'Erro';
+                    throw new Error(msg);
+                }
+                return json;
+            }
+
+            if (openAddMediaBtn && addMediaModal) {
+                openAddMediaBtn.addEventListener('click', function () {
+                    if (addMediaUploads) addMediaUploads.innerHTML = '';
+                    setAddMediaStatus('Selecione as mídias e envie.');
+                    setAddMediaOpen(true);
+                });
+            }
+
+            if (closeAddMediaBtn) {
+                closeAddMediaBtn.addEventListener('click', function () {
+                    setAddMediaOpen(false);
+                });
+            }
+
+            if (addMediaModal) {
+                addMediaModal.addEventListener('click', function (event) {
+                    if (event.target === addMediaModal) {
+                        setAddMediaOpen(false);
+                    }
+                });
+            }
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && addMediaModal && !addMediaModal.hidden) {
+                    setAddMediaOpen(false);
+                }
+            });
+
+            if (uploadImagesBtn && imagesForm) {
+                uploadImagesBtn.addEventListener('click', async function () {
+                    var fileInput = imagesForm.querySelector('input[type="file"]');
+                    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files || fileInput.files.length === 0) {
+                        setAddMediaStatus('Selecione ao menos uma imagem.');
+                        return;
+                    }
+                    var descInput = imagesForm.querySelector('input[name="description"]');
+                    var description = descInput && descInput.value ? String(descInput.value) : '';
+
+                    uploadImagesBtn.disabled = true;
+                    setAddMediaStatus('Enviando imagens…');
+
+                    var files = Array.from(fileInput.files);
+                    for (var i = 0; i < files.length; i += 1) {
+                        var file = files[i];
+                        var statusNode = appendUploadItem(file.name, 'Enviando…');
+                        try {
+                            var fd = new FormData();
+                            fd.append('file', file);
+                            if (description) fd.append('description', description);
+                            await postForm(mediaUrl, fd);
+                            if (statusNode) statusNode.textContent = 'Salvo';
+                        } catch (e) {
+                            if (statusNode) statusNode.textContent = e && e.message ? e.message : 'Erro';
+                        }
+                    }
+
+                    fileInput.value = '';
+                    uploadImagesBtn.disabled = false;
+                    setAddMediaStatus('Imagens enviadas.');
+                });
+            }
+
+            if (addVideoBtn && videoForm) {
+                addVideoBtn.addEventListener('click', async function () {
+                    var urlInput = videoForm.querySelector('input[name="youtube_url"]');
+                    if (!(urlInput instanceof HTMLInputElement)) return;
+                    var youtubeUrl = String(urlInput.value || '').trim();
+                    if (!youtubeUrl) {
+                        setAddMediaStatus('Informe um link do YouTube.');
+                        return;
+                    }
+                    var descInput = videoForm.querySelector('input[name="description"]');
+                    var description = descInput && descInput.value ? String(descInput.value) : '';
+
+                    addVideoBtn.disabled = true;
+                    setAddMediaStatus('Adicionando vídeo…');
+
+                    var statusNode = appendUploadItem('Vídeo do YouTube', 'Enviando…');
+                    try {
+                        await postJson(mediaUrl, {
+                            youtube_url: youtubeUrl,
+                            description: description || null,
+                        });
+                        if (statusNode) statusNode.textContent = 'Salvo';
+                        urlInput.value = '';
+                        if (descInput) descInput.value = '';
+                        setAddMediaStatus('Vídeo adicionado.');
+                    } catch (e) {
+                        if (statusNode) statusNode.textContent = e && e.message ? e.message : 'Erro';
+                        setAddMediaStatus(e && e.message ? e.message : 'Erro ao adicionar vídeo');
+                    } finally {
+                        addVideoBtn.disabled = false;
+                    }
+                });
+            }
+
+            if (finishAddMediaBtn) {
+                finishAddMediaBtn.addEventListener('click', function () {
+                    window.location.reload();
+                });
+            }
+
             var mediaList = document.querySelector('[data-media-list]');
-            if (!mediaList || !csrfToken) {
+            if (!mediaList) {
                 return;
             }
 

@@ -566,68 +566,46 @@
                     </article>
                 </div>
 
-                <div class="admin-modal__grid" data-project-modal-step="media" hidden>
+                <div class="admin-modal__grid admin-modal__grid--single" data-project-modal-step="media" hidden>
                     <article class="admin-surface">
                         <div class="admin-section-head">
                             <div>
                                 <div class="admin-section-kicker">Mídias</div>
-                                <h2>Adicionar imagens</h2>
+                                <h2>Adicionar imagens e vídeos</h2>
                             </div>
-                            <button class="btn" type="button" data-project-upload-images>Enviar</button>
+                            <button class="btn" type="button" data-project-open-add-media>Adicionar mídias</button>
                         </div>
-
-                        <form class="admin-form" data-project-images-form>
-                            <label class="admin-dropzone-field">Arquivos
-                                <input type="file" name="files" accept=".jpg,.jpeg,.png,.webp,.gif" multiple hidden>
-                                <div class="admin-dropzone" data-admin-dropzone>
-                                    <div class="admin-dropzone__area" data-dropzone-area>
-                                        <div class="admin-dropzone__head">
-                                            <div class="admin-dropzone__title">Arraste e solte as imagens aqui</div>
-                                            <div class="admin-dropzone__subtitle">ou clique para selecionar <span data-dropzone-count></span></div>
-                                        </div>
-                                        <div class="admin-dropzone__meta" data-dropzone-meta></div>
-                                    </div>
-                                    <div class="admin-dropzone__previews" data-dropzone-previews></div>
-                                </div>
-                            </label>
-                            <label>Descrição (opcional)
-                                <input type="text" name="description" maxlength="255" placeholder="Aplica para os uploads enviados agora">
-                            </label>
-                        </form>
-                    </article>
-
-                    <article class="admin-surface">
-                        <div class="admin-section-head">
-                            <div>
-                                <div class="admin-section-kicker">Mídias</div>
-                                <h2>Adicionar vídeo do YouTube</h2>
-                            </div>
-                            <button class="btn" type="button" data-project-add-video>Adicionar</button>
-                        </div>
-
-                        <form class="admin-form" data-project-video-form>
-                            <label>Link do YouTube
-                                <input type="url" name="youtube_url" maxlength="2000" placeholder="https://www.youtube.com/watch?v=..." required>
-                            </label>
-                            <label>Descrição (opcional)
-                                <input type="text" name="description" maxlength="255">
-                            </label>
-                        </form>
+                        <p>Use o botão acima para adicionar mídias ao projeto.</p>
                     </article>
                 </div>
 
-                <div class="admin-surface" data-project-modal-step="media" hidden>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-modal" data-project-add-media-modal hidden>
+        <div class="admin-modal__panel" role="dialog" aria-modal="true" aria-label="Adicionar mídias">
+            <div class="admin-modal__head">
+                <h2 class="admin-modal__title">Adicionar mídias</h2>
+                <button class="admin-modal__close" type="button" data-project-add-media-close aria-label="Fechar">×</button>
+            </div>
+
+            <div class="admin-modal__body">
+                <div class="admin-modal__status" data-project-add-media-status>Selecione as mídias e envie.</div>
+
+                <div class="admin-modal__grid">
+                    @include('modals._addmidia')
+                </div>
+
+                <div class="admin-surface">
                     <div class="admin-section-head">
                         <div>
                             <div class="admin-section-kicker">Status</div>
                             <h2>Envios</h2>
                         </div>
-                        <div style="display:flex;gap:.6rem;flex-wrap:wrap;justify-content:flex-end;">
-                            <a class="btn btn-secondary" href="#" data-project-open-edit hidden>Abrir projeto</a>
-                            <button class="btn" type="button" data-project-finish>Concluir</button>
-                        </div>
+                        <button class="btn" type="button" data-project-add-media-close>Fechar</button>
                     </div>
-                    <div class="admin-modal__uploads" data-project-uploads></div>
+                    <div class="admin-modal__uploads" data-project-add-media-uploads></div>
                 </div>
             </div>
         </div>
@@ -683,13 +661,19 @@
             var stepMediaBlocks = document.querySelectorAll('[data-project-modal-step="media"]');
             var createForm = document.querySelector('[data-project-create-form]');
             var createSubmit = document.querySelector('[data-project-create-submit]');
-            var imagesForm = document.querySelector('[data-project-images-form]');
-            var uploadImagesBtn = document.querySelector('[data-project-upload-images]');
-            var videoForm = document.querySelector('[data-project-video-form]');
-            var addVideoBtn = document.querySelector('[data-project-add-video]');
-            var uploadsEl = document.querySelector('[data-project-uploads]');
             var finishBtn = document.querySelector('[data-project-finish]');
             var openEditLink = document.querySelector('[data-project-open-edit]');
+            var openAddMediaBtn = document.querySelector('[data-project-open-add-media]');
+
+            var addMediaModal = document.querySelector('[data-project-add-media-modal]');
+            var addMediaStatusEl = addMediaModal ? addMediaModal.querySelector('[data-project-add-media-status]') : null;
+            var addMediaUploadsEl = addMediaModal ? addMediaModal.querySelector('[data-project-add-media-uploads]') : null;
+            var addMediaCloseBtns = addMediaModal ? addMediaModal.querySelectorAll('[data-project-add-media-close]') : [];
+
+            var imagesForm = addMediaModal ? addMediaModal.querySelector('[data-project-images-form]') : null;
+            var uploadImagesBtn = addMediaModal ? addMediaModal.querySelector('[data-project-upload-images]') : null;
+            var videoForm = addMediaModal ? addMediaModal.querySelector('[data-project-video-form]') : null;
+            var addVideoBtn = addMediaModal ? addMediaModal.querySelector('[data-project-add-video]') : null;
 
             var csrfMeta = document.querySelector('meta[name="csrf-token"]');
             var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
@@ -703,10 +687,20 @@
                 if (statusEl) statusEl.textContent = text;
             }
 
+            function setMediaStatus(text) {
+                if (addMediaStatusEl) addMediaStatusEl.textContent = text;
+            }
+
             function setOpen(open) {
                 if (!modal) return;
                 modal.hidden = !open;
                 document.documentElement.style.overflow = open ? 'hidden' : '';
+            }
+
+            function setAddMediaOpen(open) {
+                if (!addMediaModal) return;
+                addMediaModal.hidden = !open;
+                document.documentElement.style.overflow = (open || (modal && !modal.hidden)) ? 'hidden' : '';
             }
 
             function showCreateStep() {
@@ -715,7 +709,6 @@
                 stepMediaBlocks.forEach(function (el) {
                     el.hidden = true;
                 });
-                if (uploadsEl) uploadsEl.innerHTML = '';
                 if (openEditLink) {
                     openEditLink.hidden = true;
                     openEditLink.setAttribute('href', '#');
@@ -733,11 +726,11 @@
                     openEditLink.hidden = false;
                     openEditLink.setAttribute('href', project.edit_url);
                 }
-                setStatus('Projeto criado. Agora você pode adicionar imagens e vídeos.');
+                setStatus('Projeto criado. Use o botão "Adicionar mídias" para enviar imagens e vídeos.');
             }
 
-            function appendUploadItem(label, status) {
-                if (!uploadsEl) return null;
+            function appendUploadItemTo(container, label, status) {
+                if (!container) return null;
                 var row = document.createElement('div');
                 row.className = 'admin-modal__uploads-item';
                 var left = document.createElement('strong');
@@ -746,8 +739,17 @@
                 right.textContent = status;
                 row.appendChild(left);
                 row.appendChild(right);
-                uploadsEl.prepend(row);
+                container.prepend(row);
                 return right;
+            }
+
+            function appendUploadItem(label, status) {
+                return appendUploadItemTo(addMediaUploadsEl, label, status);
+            }
+
+            function setUploadStatus(node, text) {
+                if (!node) return;
+                node.textContent = text;
             }
 
             function getMediaUrl(projectId) {
@@ -814,9 +816,40 @@
                 });
             }
 
+            if (addMediaModal) {
+                addMediaModal.addEventListener('click', function (event) {
+                    if (event.target === addMediaModal) {
+                        setAddMediaOpen(false);
+                    }
+                });
+            }
+
+            document.addEventListener('click', function (event) {
+                var target = event.target;
+                if (!(target instanceof HTMLElement)) return;
+
+                if (target.closest('[data-project-add-media-close]')) {
+                    setAddMediaOpen(false);
+                    return;
+                }
+
+                if (target.closest('[data-project-open-add-media]')) {
+                    if (!createdProject || !createdProject.id) {
+                        setStatus('Crie o projeto antes de enviar mídias.');
+                        return;
+                    }
+                    if (addMediaUploadsEl) addMediaUploadsEl.innerHTML = '';
+                    setMediaStatus('Selecione as mídias e envie.');
+                    setAddMediaOpen(true);
+                }
+            });
+
             document.addEventListener('keydown', function (event) {
                 if (event.key === 'Escape' && modal && !modal.hidden) {
                     setOpen(false);
+                }
+                if (event.key === 'Escape' && addMediaModal && !addMediaModal.hidden) {
+                    setAddMediaOpen(false);
                 }
             });
 
@@ -863,14 +896,14 @@
                     }
                     var fileInput = imagesForm.querySelector('input[type="file"]');
                     if (!(fileInput instanceof HTMLInputElement) || !fileInput.files || fileInput.files.length === 0) {
-                        setStatus('Selecione ao menos uma imagem.');
+                        setMediaStatus('Selecione ao menos uma imagem.');
                         return;
                     }
                     var descInput = imagesForm.querySelector('input[name="description"]');
                     var description = descInput && descInput.value ? String(descInput.value) : '';
 
                     uploadImagesBtn.disabled = true;
-                    setStatus('Enviando imagens…');
+                    setMediaStatus('Enviando imagens…');
 
                     var url = getMediaUrl(createdProject.id);
                     var files = Array.from(fileInput.files);
@@ -883,15 +916,15 @@
                             fd.append('file', file);
                             if (description) fd.append('description', description);
                             await postForm(url, fd);
-                            if (statusNode) statusNode.textContent = 'Salvo';
+                            setUploadStatus(statusNode, 'Salvo');
                         } catch (e) {
-                            if (statusNode) statusNode.textContent = e && e.message ? e.message : 'Erro';
+                            setUploadStatus(statusNode, e && e.message ? e.message : 'Erro');
                         }
                     }
 
                     fileInput.value = '';
                     uploadImagesBtn.disabled = false;
-                    setStatus('Imagens enviadas.');
+                    setMediaStatus('Imagens enviadas.');
                 });
             }
 
@@ -905,14 +938,14 @@
                     if (!(urlInput instanceof HTMLInputElement)) return;
                     var youtubeUrl = String(urlInput.value || '').trim();
                     if (!youtubeUrl) {
-                        setStatus('Informe um link do YouTube.');
+                        setMediaStatus('Informe um link do YouTube.');
                         return;
                     }
                     var descInput = videoForm.querySelector('input[name="description"]');
                     var description = descInput && descInput.value ? String(descInput.value) : '';
 
                     addVideoBtn.disabled = true;
-                    setStatus('Adicionando vídeo…');
+                    setMediaStatus('Adicionando vídeo…');
 
                     var statusNode = appendUploadItem('Vídeo do YouTube', 'Enviando…');
                     try {
@@ -920,13 +953,13 @@
                             youtube_url: youtubeUrl,
                             description: description || null,
                         });
-                        if (statusNode) statusNode.textContent = 'Salvo';
+                        setUploadStatus(statusNode, 'Salvo');
                         urlInput.value = '';
                         if (descInput) descInput.value = '';
-                        setStatus('Vídeo adicionado.');
+                        setMediaStatus('Vídeo adicionado.');
                     } catch (e) {
-                        if (statusNode) statusNode.textContent = e && e.message ? e.message : 'Erro';
-                        setStatus(e && e.message ? e.message : 'Erro ao adicionar vídeo');
+                        setUploadStatus(statusNode, e && e.message ? e.message : 'Erro');
+                        setMediaStatus(e && e.message ? e.message : 'Erro ao adicionar vídeo');
                     } finally {
                         addVideoBtn.disabled = false;
                     }
