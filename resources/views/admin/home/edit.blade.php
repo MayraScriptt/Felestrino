@@ -188,6 +188,34 @@
         .admin-card-detail-fields[hidden] {
             display: none !important;
         }
+
+        .admin-home-save-feedback {
+            position: fixed;
+            right: 1rem;
+            bottom: 1rem;
+            z-index: 1000;
+            max-width: min(360px, calc(100vw - 2rem));
+            padding: .65rem .85rem;
+            border-radius: .7rem;
+            border: 1px solid rgba(13, 27, 62, 0.12);
+            background: #fff;
+            box-shadow: 0 12px 28px rgba(8, 17, 42, 0.12);
+            font-family: "Rajdhani", sans-serif;
+            font-size: .92rem;
+            font-weight: 700;
+            letter-spacing: .03em;
+            color: #0d1b3e;
+        }
+
+        .admin-home-save-feedback.is-success {
+            border-color: rgba(46, 128, 70, 0.35);
+            background: rgba(46, 128, 70, 0.08);
+        }
+
+        .admin-home-save-feedback.is-error {
+            border-color: rgba(184, 48, 48, 0.35);
+            background: rgba(184, 48, 48, 0.08);
+        }
     </style>
 
     <div class="admin-pages-head">
@@ -198,6 +226,7 @@
     </div>
 
     <form id="home-form" data-home-admin data-home-tabs>
+        <div class="admin-home-save-feedback" data-home-save-feedback role="status" aria-live="polite" hidden></div>
         <div class="admin-home-tabs" role="tablist" aria-label="Seções da Home">
             <button class="admin-home-tab-btn is-active" type="button" role="tab" aria-selected="true" data-home-tab-trigger data-target="banner">Banner</button>
             <button class="admin-home-tab-btn" type="button" role="tab" aria-selected="false" data-home-tab-trigger data-target="cards">Cards</button>
@@ -409,6 +438,38 @@
                     </div>
                 </div>
                 <div class="admin-form">
+                    @php
+                        $faviconCandidate = 'imagens/favicon.png';
+                        $faviconFallback = 'imagens/logo.png';
+                        $faviconSource = file_exists(public_path($faviconCandidate)) ? $faviconCandidate : $faviconFallback;
+                        $faviconVersion = file_exists(public_path($faviconSource)) ? ('?v='.filemtime(public_path($faviconSource))) : '';
+                        $faviconUrl = asset($faviconSource).$faviconVersion;
+                    @endphp
+                    <div class="admin-surface" style="margin:0;">
+                        <div class="admin-section-head">
+                            <div>
+                                <div class="admin-section-kicker">Identidade</div>
+                                <h2>Favicon</h2>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:.9rem;align-items:center;flex-wrap:wrap;">
+                            <img src="{{ $faviconUrl }}" alt="" width="48" height="48" data-home-favicon-current style="border-radius:.7rem;border:1px solid rgba(13,27,62,.12);background:#fff;">
+                            <label class="admin-dropzone-field" style="margin:0;min-width:min(520px,100%);">Alterar favicon
+                                <input type="file" accept=".png" data-home-favicon-file hidden>
+                                <div class="admin-dropzone" data-admin-dropzone>
+                                    <div class="admin-dropzone__area" data-dropzone-area>
+                                        <div class="admin-dropzone__head">
+                                            <div class="admin-dropzone__title">Arraste e solte a imagem aqui</div>
+                                            <div class="admin-dropzone__subtitle">ou clique para selecionar <span data-dropzone-count></span></div>
+                                        </div>
+                                        <div class="admin-dropzone__meta" data-dropzone-meta></div>
+                                    </div>
+                                    <div class="admin-dropzone__previews" data-dropzone-previews></div>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="admin-home-upload__hint">PNG • máx. 5MB • será gerado favicon (64×64) + ícone iOS (180×180)</div>
+                    </div>
                     <label>Nome da empresa
                         <input type="text" name="company_name" maxlength="150" value="{{ old('company_name', $settings['company_name'] ?? '') }}" data-home-setting>
                     </label>

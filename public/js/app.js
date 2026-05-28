@@ -180,12 +180,29 @@
     const initHomeAdmin = (root) => {
         const indicator = document.querySelector('[data-autosave-indicator]');
         const saveAllButton = document.querySelector('[data-home-save-all]');
+        const saveFeedback = root.querySelector('[data-home-save-feedback]');
+        let saveFeedbackTimerId = null;
 
         const setIndicator = (state, text) => {
             if (!indicator) return;
             indicator.classList.remove('is-saving', 'is-saved', 'is-error');
             if (state) indicator.classList.add(state);
             indicator.textContent = text;
+        };
+
+        const showSaveFeedback = (state, text) => {
+            if (!saveFeedback) return;
+            if (saveFeedbackTimerId) {
+                window.clearTimeout(saveFeedbackTimerId);
+                saveFeedbackTimerId = null;
+            }
+            saveFeedback.classList.remove('is-success', 'is-error');
+            if (state) saveFeedback.classList.add(state);
+            saveFeedback.textContent = String(text || '').trim();
+            saveFeedback.hidden = false;
+            saveFeedbackTimerId = window.setTimeout(() => {
+                saveFeedback.hidden = true;
+            }, 2600);
         };
 
         const dirtySettings = new Map();
@@ -228,6 +245,8 @@
         const heroPreviewTitle = root.querySelector('[data-home-hero-title]');
         const heroPreviewSubtitle = root.querySelector('[data-home-hero-subtitle]');
         const heroPreviewButton = root.querySelector('[data-home-hero-button]');
+        const faviconFile = root.querySelector('[data-home-favicon-file]');
+        const faviconCurrent = root.querySelector('[data-home-favicon-current]');
 
         let previewFadeTimerId = null;
         const setPreviewTitle = (title) => {
@@ -1059,13 +1078,16 @@
             if (!csrfToken) return;
             const hasPendingCarouselUpload =
                 carouselFile instanceof HTMLInputElement && carouselFile.files && carouselFile.files.length > 0;
+            const hasPendingFaviconUpload =
+                faviconFile instanceof HTMLInputElement && faviconFile.files && faviconFile.files.length > 0;
             const hasAnyChanges =
                 dirtySettings.size > 0 ||
                 dirtyCarouselItems.size > 0 ||
                 dirtyCardItems.size > 0 ||
                 carouselOrderDirty ||
                 cardsOrderDirty ||
-                hasPendingCarouselUpload;
+                hasPendingCarouselUpload ||
+                hasPendingFaviconUpload;
 
             if (!hasAnyChanges) {
                 setIndicator(null, 'Nada para salvar');
@@ -1079,6 +1101,34 @@
             setIndicator('is-saving', 'Salvando…');
 
             try {
+                if (hasPendingFaviconUpload && faviconFile instanceof HTMLInputElement && faviconFile.files) {
+                    const file = faviconFile.files[0];
+                    if (file) {
+                        const form = new FormData();
+                        form.append('file', file);
+                        const json = await fetchJson('/admin/home/favicon', {
+                            method: 'POST',
+                            headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                            body: form,
+                        });
+                        if (json && json.favicon_url) {
+                            if (faviconCurrent instanceof HTMLImageElement) {
+                                faviconCurrent.src = json.favicon_url;
+                            }
+                            document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach((link) => {
+                                link.setAttribute('href', json.favicon_url);
+                            });
+                            if (json.apple_touch_icon_url) {
+                                document.querySelectorAll('link[rel="apple-touch-icon"]').forEach((link) => {
+                                    link.setAttribute('href', json.apple_touch_icon_url);
+                                });
+                            }
+                        }
+                        faviconFile.value = '';
+                        faviconFile.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+
                 if (hasPendingCarouselUpload && carouselFile instanceof HTMLInputElement && carouselFile.files) {
                     const file = carouselFile.files[0];
                     if (file) {
@@ -1231,8 +1281,10 @@
                 dirtySettings.clear();
 
                 setIndicator('is-saved', 'Salvo');
+                showSaveFeedback('is-success', 'Salvamento concluído.');
             } catch (e) {
                 setIndicator('is-error', 'Erro ao salvar');
+                showSaveFeedback('is-error', 'Não foi possível salvar. Tente novamente.');
             } finally {
                 if (saveAllButton instanceof HTMLButtonElement) {
                     saveAllButton.disabled = false;
@@ -1249,6 +1301,12 @@
             saveAllButton.addEventListener('click', (event) => {
                 event.preventDefault();
                 saveAll();
+            });
+        }
+
+        if (faviconFile instanceof HTMLInputElement) {
+            faviconFile.addEventListener('change', () => {
+                markDirty();
             });
         }
     };
