@@ -44,7 +44,7 @@ nav a:hover { background: rgba(10, 31, 68, .7); }
 .home-cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: .5rem; }
 .home-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 1rem; }
 .home-card__link { display: block; }
-.home-card__icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(16, 46, 99, .08); display: grid; place-items: center; font-size: 1.25rem; margin-bottom: .6rem; }
+.home-card__icon { display: inline-flex; align-items: center; justify-content: center; width: fit-content; max-width: 100%; padding: .38rem .65rem; border-radius: 999px; background: rgba(16, 46, 99, .08); font-size: 1.05rem; line-height: 1.15; margin-bottom: .6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-card__title { font-size: 1.1rem; margin-bottom: .35rem; color: #0f172a; }
 .home-card__description { margin: 0; color: #334155; line-height: 1.6; }
 
