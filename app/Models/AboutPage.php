@@ -14,6 +14,8 @@ class AboutPage extends Model
         'banner_path',
         'banner_subtitle',
         'banner_description',
+        'banner_position_x',
+        'banner_position_y',
         'media_positions',
     ];
 

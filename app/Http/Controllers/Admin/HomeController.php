@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 
 class HomeController extends Controller
 {
@@ -112,6 +113,51 @@ class HomeController extends Controller
         }
 
         return redirect()->route('admin.home.edit')->with('status', 'Página inicial atualizada com sucesso.');
+    }
+
+    public function faviconStore(Request $request): JsonResponse
+    {
+        /** @var UploadedFile|null $file */
+        $file = $request->file('file');
+        if (! $file instanceof UploadedFile) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Envie um arquivo.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:png', 'max:5120'],
+        ]);
+
+        $before = [
+            'favicon' => file_exists(public_path('imagens/favicon.png')),
+            'apple_touch_icon' => file_exists(public_path('imagens/apple-touch-icon.png')),
+        ];
+
+        $this->storeFaviconAssets($file);
+
+        $after = [
+            'favicon' => file_exists(public_path('imagens/favicon.png')),
+            'apple_touch_icon' => file_exists(public_path('imagens/apple-touch-icon.png')),
+        ];
+
+        $this->audit($request, 'settings', null, 'favicon_updated', [
+            'before' => $before,
+            'after' => $after,
+        ]);
+
+        SiteCache::bump();
+
+        $faviconPath = public_path('imagens/favicon.png');
+        $faviconVersion = is_file($faviconPath) ? (string) @filemtime($faviconPath) : (string) time();
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Favicon atualizado com sucesso.',
+            'favicon_url' => asset('imagens/favicon.png').'?v='.$faviconVersion,
+            'apple_touch_icon_url' => asset('imagens/apple-touch-icon.png').'?v='.$faviconVersion,
+        ]);
     }
 
     public function carouselStore(Request $request): JsonResponse
@@ -573,6 +619,72 @@ class HomeController extends Controller
         }
 
         return $relativeDir.'/'.$fileName;
+    }
+
+    private function storeFaviconAssets(UploadedFile $file): void
+    {
+        $dir = public_path('imagens');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+
+        $faviconPath = $dir.DIRECTORY_SEPARATOR.'favicon.png';
+        $appleTouchPath = $dir.DIRECTORY_SEPARATOR.'apple-touch-icon.png';
+
+        $tmpPath = $file->getRealPath();
+        if (! is_string($tmpPath) || $tmpPath === '') {
+            $file->move($dir, 'favicon.png');
+            return;
+        }
+
+        $info = @getimagesize($tmpPath);
+        $mime = is_array($info) && isset($info['mime']) ? (string) $info['mime'] : '';
+
+        $create = null;
+        if ($mime === 'image/png' && function_exists('imagecreatefrompng')) {
+            $create = fn () => @imagecreatefrompng($tmpPath);
+        } elseif ($mime === 'image/jpeg' && function_exists('imagecreatefromjpeg')) {
+            $create = fn () => @imagecreatefromjpeg($tmpPath);
+        } elseif ($mime === 'image/webp' && function_exists('imagecreatefromwebp')) {
+            $create = fn () => @imagecreatefromwebp($tmpPath);
+        } elseif ($mime === 'image/gif' && function_exists('imagecreatefromgif')) {
+            $create = fn () => @imagecreatefromgif($tmpPath);
+        }
+
+        if (! $create || ! function_exists('imagescale') || ! function_exists('imagepng')) {
+            $file->move($dir, 'favicon.png');
+            return;
+        }
+
+        $src = $create();
+        if (! $src) {
+            $file->move($dir, 'favicon.png');
+            return;
+        }
+
+        $writePng = function ($image, string $target, int $size): void {
+            $scaled = @imagescale($image, $size, $size);
+            if (! $scaled) {
+                return;
+            }
+            if (function_exists('imagealphablending')) {
+                @imagealphablending($scaled, false);
+            }
+            if (function_exists('imagesavealpha')) {
+                @imagesavealpha($scaled, true);
+            }
+            @imagepng($scaled, $target, 9);
+            if ((is_resource($scaled) || (is_object($scaled) && get_class($scaled) === 'GdImage')) && $scaled !== $image) {
+                @imagedestroy($scaled);
+            }
+        };
+
+        $writePng($src, $faviconPath, 64);
+        $writePng($src, $appleTouchPath, 180);
+
+        if (is_resource($src) || (is_object($src) && get_class($src) === 'GdImage')) {
+            @imagedestroy($src);
+        }
     }
 
     private function imageUrl(string $path): string

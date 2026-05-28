@@ -10,6 +10,15 @@
     <meta property="og:description" content="{{ $seo['description'] ?? '' }}">
     <meta property="og:type" content="website">
     @php
+        $faviconSource = file_exists(public_path('imagens/favicon.png')) ? 'imagens/favicon.png' : 'imagens/logo.png';
+        $faviconVersion = file_exists(public_path($faviconSource)) ? ('?v='.filemtime(public_path($faviconSource))) : '';
+        $faviconUrl = asset($faviconSource).$faviconVersion;
+    @endphp
+    <link rel="icon" type="image/png" href="{{ $faviconUrl }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
+    <link rel="shortcut icon" href="{{ $faviconUrl }}">
+    <link rel="apple-touch-icon" href="{{ $faviconUrl }}">
+    @php
         $cssAsset = file_exists(public_path('mix-manifest.json')) ? mix('/css/app.css') : asset('css/app.css');
         $jsAsset = file_exists(public_path('mix-manifest.json')) ? mix('/js/app.js') : asset('js/app.js');
     @endphp

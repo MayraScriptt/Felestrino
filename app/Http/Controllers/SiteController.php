@@ -64,6 +64,8 @@ class SiteController extends Controller
                     'banner_path' => $aboutPage?->banner_path,
                     'banner_subtitle' => $aboutPage?->banner_subtitle,
                     'banner_description' => $aboutPage?->banner_description,
+                    'banner_position_x' => $aboutPage?->banner_position_x,
+                    'banner_position_y' => $aboutPage?->banner_position_y,
                 ];
             }
 

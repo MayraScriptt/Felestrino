@@ -23,6 +23,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::redirect('/', '/admin/home');
         Route::get('/home', [HomeController::class, 'edit'])->name('home.edit');
         Route::put('/home', [HomeController::class, 'update'])->name('home.update');
+        Route::post('/home/favicon', [HomeController::class, 'faviconStore'])->name('home.favicon.store');
         Route::post('/home/carousel', [HomeController::class, 'carouselStore'])->name('home.carousel.store');
         Route::put('/home/carousel/{item}', [HomeController::class, 'carouselUpdate'])->name('home.carousel.update');
         Route::delete('/home/carousel/{item}', [HomeController::class, 'carouselDestroy'])->name('home.carousel.destroy');
@@ -48,5 +49,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/projetos/cards/{project}/imagens/{image}', [ProjectController::class, 'imageUpdate'])->name('projects.images.update');
         Route::delete('/projetos/cards/{project}/imagens/{image}', [ProjectController::class, 'imageDestroy'])->name('projects.images.destroy');
         Route::post('/projetos/cards/{project}/imagens/reorder', [ProjectController::class, 'mediaReorder'])->name('projects.images.reorder');
+        Route::post('/projetos/midias-temporarias', [ProjectController::class, 'tempMediaStore'])->name('projects.temp-media.store');
+        Route::put('/projetos/midias-temporarias/{media}', [ProjectController::class, 'tempMediaUpdate'])->name('projects.temp-media.update');
     });
 });

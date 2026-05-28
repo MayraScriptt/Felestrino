@@ -135,6 +135,7 @@ main section { margin-bottom: 1.5rem; }
 }
 
 html.is-home { scroll-snap-type: none; }
+html.is-home { scroll-behavior: smooth; }
 body.is-home { background: #ffffff; }
 .is-home .site-header { position: fixed; inset: 0 0 auto 0; background: transparent; }
 .is-home .site-header::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(10, 31, 68, .82), rgba(10, 31, 68, .12)); z-index: 0; }
@@ -168,7 +169,50 @@ body.is-home { background: #ffffff; }
 .hero-carousel__dot { width: 10px; height: 10px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .55); background: transparent; padding: 0; cursor: pointer; }
 .hero-carousel__dot.is-active { background: rgba(255, 255, 255, .92); border-color: rgba(255, 255, 255, .92); }
 
+.whatsapp-float {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    width: 56px;
+    height: 56px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: #25D366;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 14px 40px rgba(13, 27, 62, 0.18);
+    z-index: 50;
+}
+
+.whatsapp-float svg {
+    width: 30px;
+    height: 30px;
+    display: block;
+}
+
+.whatsapp-float:hover {
+    filter: brightness(1.02);
+    transform: translateY(-1px);
+}
+
+.whatsapp-float:focus-visible {
+    outline: 3px solid rgba(37, 211, 102, 0.35);
+    outline-offset: 3px;
+}
+
+@media (max-width: 768px) {
+    .whatsapp-float {
+        right: 14px;
+        bottom: 14px;
+        width: 52px;
+        height: 52px;
+    }
+}
+
 .home-main { background: #ffffff; scroll-snap-align: none; scroll-margin-top: 84px; padding-top: 84px; }
+
+@media (prefers-reduced-motion: reduce) {
 
 @media (prefers-reduced-motion: reduce) {
     .hero-carousel__slide { transition: none; }

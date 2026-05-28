@@ -48,6 +48,8 @@ class AboutCompanyController extends Controller
             'banner_remove' => ['sometimes', 'nullable', 'boolean'],
             'banner_subtitle' => ['sometimes', 'nullable', 'string', 'max:255'],
             'banner_description' => ['sometimes', 'nullable', 'string'],
+            'banner_position_x' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
+            'banner_position_y' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
         ]);
 
         $aboutPage = $this->getOrCreateAboutPage();
@@ -80,6 +82,8 @@ class AboutCompanyController extends Controller
             'banner_path' => $nextBannerPath,
             'banner_subtitle' => array_key_exists('banner_subtitle', $payload) ? ($payload['banner_subtitle'] ?: null) : $aboutPage->banner_subtitle,
             'banner_description' => array_key_exists('banner_description', $payload) ? ($payload['banner_description'] ?: null) : $aboutPage->banner_description,
+            'banner_position_x' => array_key_exists('banner_position_x', $payload) ? ($payload['banner_position_x'] ?? 50) : ($aboutPage->banner_position_x ?? 50),
+            'banner_position_y' => array_key_exists('banner_position_y', $payload) ? ($payload['banner_position_y'] ?? 50) : ($aboutPage->banner_position_y ?? 50),
             'media_positions' => $nextMediaPositions,
         ]);
 
@@ -144,6 +148,8 @@ class AboutCompanyController extends Controller
             'banner_path' => null,
             'banner_subtitle' => null,
             'banner_description' => null,
+            'banner_position_x' => 50,
+            'banner_position_y' => 50,
             'media_positions' => [],
         ]);
     }

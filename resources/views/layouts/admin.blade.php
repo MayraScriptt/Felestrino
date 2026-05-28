@@ -9,6 +9,14 @@
         $cssAsset = file_exists(public_path('mix-manifest.json')) ? mix('/css/app.css') : asset('css/app.css');
         $jsAsset = file_exists(public_path('mix-manifest.json')) ? mix('/js/app.js') : asset('js/app.js');
     @endphp
+    @php
+        $faviconSource = file_exists(public_path('imagens/favicon.png')) ? 'imagens/favicon.png' : 'imagens/logo.png';
+        $faviconVersion = file_exists(public_path($faviconSource)) ? ('?v='.filemtime(public_path($faviconSource))) : '';
+        $faviconUrl = asset($faviconSource).$faviconVersion;
+    @endphp
+    <link rel="icon" type="image/png" href="{{ $faviconUrl }}">
+    <link rel="shortcut icon" href="{{ $faviconUrl }}">
+    <link rel="apple-touch-icon" href="{{ asset('imagens/apple-touch-icon.png').(file_exists(public_path('imagens/apple-touch-icon.png')) ? ('?v='.filemtime(public_path('imagens/apple-touch-icon.png'))) : '') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
@@ -192,16 +200,10 @@
             padding: 1rem;
         }
 
-        .admin-topbar {
-            background: rgba(255, 255, 255, 0.92);
-            border: 1px solid rgba(212, 171, 74, 0.2);
-            border-radius: .8rem;
-            backdrop-filter: blur(6px);
-            box-shadow: var(--shadow-soft);
-            padding: .85rem .95rem;
+        .admin-mobile-controls {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
             gap: .75rem;
         }
 
@@ -216,28 +218,6 @@
             justify-content: center;
             font-size: 1.15rem;
             color: var(--navy);
-        }
-
-        .admin-page-info {
-            min-width: 0;
-        }
-
-        .admin-page-info h1 {
-            margin: 0;
-            font-family: "Rajdhani", sans-serif;
-            font-size: 1.04rem;
-            font-weight: 700;
-            letter-spacing: .07em;
-            text-transform: uppercase;
-        }
-
-        .admin-page-info p {
-            margin: .15rem 0 0;
-            color: var(--text-muted);
-            font-size: .8rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
         .admin-content {
@@ -738,6 +718,136 @@
             height: clamp(170px, 22vw, 240px);
         }
 
+        .admin-banner-guides {
+            border-radius: .85rem;
+            border: 1px solid rgba(13, 27, 62, 0.12);
+            background: rgba(20, 33, 80, 0.02);
+            padding: .75rem;
+            display: grid;
+            gap: .6rem;
+            position: relative;
+            --admin-banner-guides-x: 50%;
+            --admin-banner-guides-y: 50%;
+            --admin-banner-guides-pos: 50% 50%;
+        }
+
+        .admin-banner-guides__title {
+            font-family: "DM Sans", sans-serif;
+            font-weight: 700;
+            font-size: .92rem;
+            color: var(--navy);
+        }
+
+        .admin-banner-guides__hint {
+            font-size: .8rem;
+            color: rgba(13, 27, 62, 0.72);
+            line-height: 1.35;
+        }
+
+        .admin-banner-guides__grid {
+            display: grid;
+            gap: .65rem;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        }
+
+        .admin-banner-guides__frame {
+            border-radius: .75rem;
+            overflow: hidden;
+            border: 1px solid rgba(13, 27, 62, 0.14);
+            background: #fff;
+            box-shadow: 0 10px 22px rgba(8, 17, 42, 0.06);
+            position: relative;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .admin-banner-guides__frame::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: var(--admin-banner-guides-src);
+            background-size: cover;
+            background-position: var(--admin-banner-guides-pos, center);
+            transform: scale(1.02);
+        }
+
+        .admin-banner-guides__frame::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(8, 17, 42, 0.0), rgba(8, 17, 42, 0.35));
+        }
+
+        .admin-banner-guides__label {
+            position: absolute;
+            left: .55rem;
+            bottom: .5rem;
+            z-index: 2;
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            padding: .25rem .5rem;
+            border-radius: 999px;
+            font-size: .72rem;
+            font-family: "DM Sans", sans-serif;
+            font-weight: 700;
+            letter-spacing: .02em;
+            color: #fff;
+            background: rgba(13, 27, 62, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .admin-banner-guides__marker {
+            position: absolute;
+            left: var(--admin-banner-guides-x, 50%);
+            top: var(--admin-banner-guides-y, 50%);
+            transform: translate(-50%, -50%);
+            width: 14px;
+            height: 14px;
+            border-radius: 999px;
+            border: 2px solid rgba(255, 255, 255, 0.92);
+            box-shadow: 0 0 0 3px rgba(13, 27, 62, 0.35);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .admin-banner-guides.is-marked .admin-banner-guides__frame::before {
+            filter: grayscale(1);
+            opacity: .72;
+        }
+
+        .admin-banner-guides__ratio-desktop {
+            aspect-ratio: 21 / 9;
+        }
+
+        .admin-banner-guides__ratio-tablet {
+            aspect-ratio: 4 / 3;
+        }
+
+        .admin-banner-guides__ratio-mobile {
+            aspect-ratio: 9 / 16;
+        }
+
+        .admin-banner-guides[data-banner-guides-variant="page"] {
+            --admin-banner-guides-page-desktop-ratio: 21 / 5;
+            --admin-banner-guides-page-tablet-ratio: 21 / 6;
+            --admin-banner-guides-page-mobile-ratio: 5 / 2;
+        }
+
+        .admin-banner-guides[data-banner-guides-variant="page"] .admin-banner-guides__ratio-desktop {
+            aspect-ratio: var(--admin-banner-guides-page-desktop-ratio);
+        }
+
+        .admin-banner-guides[data-banner-guides-variant="page"] .admin-banner-guides__ratio-tablet {
+            aspect-ratio: var(--admin-banner-guides-page-tablet-ratio);
+        }
+
+        .admin-banner-guides[data-banner-guides-variant="page"] .admin-banner-guides__ratio-mobile {
+            aspect-ratio: var(--admin-banner-guides-page-mobile-ratio);
+        }
+
         .admin-body.menu-open .admin-sidebar {
             transform: translateX(0);
         }
@@ -761,6 +871,10 @@
 
             .admin-menu-btn,
             .admin-menu-overlay {
+                display: none;
+            }
+
+            .admin-mobile-controls {
                 display: none;
             }
 
@@ -847,13 +961,11 @@
         </aside>
 
         <main class="admin-main">
-            <header class="admin-topbar">
+            <div class="admin-mobile-controls">
                 <button class="admin-menu-btn admin-btn" type="button" data-menu-toggle aria-controls="admin-sidebar" aria-expanded="false" aria-label="Abrir menu">
                     ☰
                 </button>
-                <div class="admin-page-info">
-                </div>
-            </header>
+            </div>
 
             <section class="admin-content">
                 @if (session('status'))

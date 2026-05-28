@@ -48,21 +48,8 @@
             gap: 1rem;
         }
 
-        .admin-title-banner {
-            width: 100%;
-            border-radius: .8rem;
-            overflow: hidden;
-            border: 1px solid rgba(13, 27, 62, 0.12);
-            background: linear-gradient(180deg, rgba(20, 33, 80, 0.12), rgba(184, 144, 42, 0.10));
-            position: relative;
-        }
-
-        .admin-title-banner img {
-            width: 100%;
-            height: auto;
-            display: block;
-            aspect-ratio: 21 / 7;
-            object-fit: cover;
+        .admin-banner-guides {
+            margin-bottom: .9rem;
         }
 
         .admin-banner-remove-btn {
@@ -91,12 +78,7 @@
             border-color: rgba(212, 171, 74, 0.65);
         }
 
-        .admin-title-banner.is-marked img {
-            filter: grayscale(1);
-            opacity: .72;
-        }
-
-        .admin-title-banner.is-marked .admin-banner-remove-btn {
+        .admin-banner-guides.is-marked .admin-banner-remove-btn {
             background: rgba(153, 27, 27, 0.72);
             border-color: rgba(255, 255, 255, 0.55);
         }
@@ -109,12 +91,6 @@
             border-radius: .65rem;
             background: rgba(184, 144, 42, 0.12);
             border: 1px solid rgba(184, 144, 42, 0.22);
-        }
-
-        @media (max-width: 768px) {
-            .admin-title-banner img {
-                aspect-ratio: 16 / 9;
-            }
         }
     </style>
 
@@ -135,6 +111,10 @@
             return asset('storage/'.$path);
         };
         $bannerSrc = $resolveBannerSrc($aboutPage->banner_path ?? null);
+        $bannerPosX = (int) old('banner_position_x', $aboutPage->banner_position_x ?? 50);
+        $bannerPosY = (int) old('banner_position_y', $aboutPage->banner_position_y ?? 50);
+        $bannerPosX = max(0, min(100, $bannerPosX));
+        $bannerPosY = max(0, min(100, $bannerPosY));
     @endphp
 
     <form id="about-company-form" action="{{ route('admin.about-company.update') }}" method="POST" enctype="multipart/form-data">
@@ -171,10 +151,34 @@
                         </div>
                     </div>
 
+                    <input type="hidden" name="banner_position_x" value="{{ $bannerPosX }}">
+                    <input type="hidden" name="banner_position_y" value="{{ $bannerPosY }}">
+
                     @if ($bannerSrc)
-                        <div class="admin-title-banner" data-banner-root>
-                            <img src="{{ $bannerSrc }}" alt="" loading="lazy" decoding="async">
+                        <div
+                            class="admin-banner-guides"
+                            data-banner-root
+                            data-banner-guides
+                            data-banner-guides-variant="page"
+                            style="--admin-banner-guides-src: url('{{ $bannerSrc }}'); --admin-banner-guides-x: {{ $bannerPosX }}%; --admin-banner-guides-y: {{ $bannerPosY }}%; --admin-banner-guides-pos: {{ $bannerPosX }}% {{ $bannerPosY }}%;"
+                        >
                             <button class="admin-banner-remove-btn" type="button" data-banner-remove aria-label="Remover banner">×</button>
+                            <div class="admin-banner-guides__title">Prévia do banner</div>
+                            <div class="admin-banner-guides__hint">Clique em qualquer prévia para ajustar o ponto focal (o centro do corte). O site usa cover.</div>
+                            <div class="admin-banner-guides__grid">
+                                <div class="admin-banner-guides__frame admin-banner-guides__ratio-desktop">
+                                    <span class="admin-banner-guides__marker" aria-hidden="true"></span>
+                                    <span class="admin-banner-guides__label">Desktop</span>
+                                </div>
+                                <div class="admin-banner-guides__frame admin-banner-guides__ratio-tablet">
+                                    <span class="admin-banner-guides__marker" aria-hidden="true"></span>
+                                    <span class="admin-banner-guides__label">Tablet</span>
+                                </div>
+                                <div class="admin-banner-guides__frame admin-banner-guides__ratio-mobile">
+                                    <span class="admin-banner-guides__marker" aria-hidden="true"></span>
+                                    <span class="admin-banner-guides__label">Celular</span>
+                                </div>
+                            </div>
                         </div>
                         <input type="hidden" name="banner_remove" value="0" data-banner-remove-input>
                         <div class="admin-banner-remove-hint" data-banner-hint hidden>Salve para que o banner seja excluído</div>
@@ -182,7 +186,7 @@
 
                     <label class="admin-dropzone-field">Imagem do banner (opcional)
                         <input type="file" name="banner_file" accept=".jpg,.jpeg,.png,.webp,.gif" hidden>
-                        <div class="admin-dropzone" data-admin-dropzone data-preview-size="banner">
+                        <div class="admin-dropzone" data-admin-dropzone data-preview-size="banner" data-banner-guides-variant="page">
                             <div class="admin-dropzone__area" data-dropzone-area>
                                 <div class="admin-dropzone__head">
                                     <div class="admin-dropzone__title">Arraste e solte a imagem aqui</div>
@@ -193,6 +197,7 @@
                             <div class="admin-dropzone__previews" data-dropzone-previews></div>
                         </div>
                     </label>
+                    <div class="admin-home-upload__hint">Tamanho ideal: 1920×1080 (16:9) ou maior • o site corta automaticamente (cover)</div>
 
                     <label>Subtítulo do banner
                         <input type="text" name="banner_subtitle" maxlength="255" value="{{ old('banner_subtitle', $aboutPage->banner_subtitle ?? '') }}">

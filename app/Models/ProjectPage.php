@@ -14,5 +14,7 @@ class ProjectPage extends Model
         'subtitle',
         'description',
         'banner_path',
+        'banner_position_x',
+        'banner_position_y',
     ];
 }

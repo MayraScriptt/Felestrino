@@ -13,6 +13,10 @@
             return asset('storage/'.$path);
         };
         $bannerSrc = $resolveBannerSrc($banner_path ?? null);
+        $bannerPosX = is_numeric($banner_position_x ?? null) ? (int) $banner_position_x : 50;
+        $bannerPosY = is_numeric($banner_position_y ?? null) ? (int) $banner_position_y : 50;
+        $bannerPosX = max(0, min(100, $bannerPosX));
+        $bannerPosY = max(0, min(100, $bannerPosY));
     @endphp
 
     <style>
@@ -51,7 +55,7 @@
             inset: 0;
             background-image: var(--page-banner);
             background-size: cover;
-            background-position: center;
+            background-position: var(--page-banner-position, center);
             transform: scale(1.02);
         }
 
@@ -75,7 +79,7 @@
 
     <section
         class="hero hero-small page-hero @if ($bannerSrc) page-hero--banner @endif"
-        @if ($bannerSrc) style="--page-banner: url('{{ $bannerSrc }}')" @endif
+        @if ($bannerSrc) style="--page-banner: url('{{ $bannerSrc }}'); --page-banner-position: {{ $bannerPosX }}% {{ $bannerPosY }}%;" @endif
     >
         <div class="container">
             <h1>{{ $page->title }}</h1>

@@ -27,6 +27,103 @@
         return Math.round((bytes / (1024 * 1024)) * 10) / 10;
     }
 
+    function clampPercent(value, fallback) {
+        var parsed = parseInt(value, 10);
+        var next = isNaN(parsed) ? (typeof fallback === 'number' ? fallback : 50) : parsed;
+        if (next < 0) return 0;
+        if (next > 100) return 100;
+        return next;
+    }
+
+    function readBannerPosition(guidesEl) {
+        var form = guidesEl ? guidesEl.closest('form') : null;
+        var xInput = form ? form.querySelector('input[name="banner_position_x"]') : null;
+        var yInput = form ? form.querySelector('input[name="banner_position_y"]') : null;
+        var x = xInput ? clampPercent(xInput.value, 50) : 50;
+        var y = yInput ? clampPercent(yInput.value, 50) : 50;
+
+        return {
+            form: form,
+            xInput: xInput,
+            yInput: yInput,
+            x: x,
+            y: y,
+        };
+    }
+
+    function applyBannerPosition(guidesEl, x, y) {
+        if (!guidesEl) return;
+        var nextX = clampPercent(x, 50);
+        var nextY = clampPercent(y, 50);
+        guidesEl.style.setProperty('--admin-banner-guides-x', nextX + '%');
+        guidesEl.style.setProperty('--admin-banner-guides-y', nextY + '%');
+        guidesEl.style.setProperty('--admin-banner-guides-pos', nextX + '% ' + nextY + '%');
+    }
+
+    function setupBannerGuidesInteraction(guidesEl) {
+        if (!guidesEl || guidesEl.__bannerGuidesReady) return;
+        guidesEl.__bannerGuidesReady = true;
+
+        var initial = readBannerPosition(guidesEl);
+        applyBannerPosition(guidesEl, initial.x, initial.y);
+        if (!initial.xInput && !initial.yInput) return;
+
+        var activePointerId = null;
+        var activeFrame = null;
+
+        function updateFromEvent(event) {
+            if (!activeFrame) return;
+            var rect = activeFrame.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+
+            var relX = (event.clientX - rect.left) / rect.width;
+            var relY = (event.clientY - rect.top) / rect.height;
+
+            if (relX < 0) relX = 0;
+            if (relX > 1) relX = 1;
+            if (relY < 0) relY = 0;
+            if (relY > 1) relY = 1;
+            var x = clampPercent(Math.round(relX * 100), 50);
+            var y = clampPercent(Math.round(relY * 100), 50);
+
+            var payload = readBannerPosition(guidesEl);
+            if (payload.xInput) payload.xInput.value = String(x);
+            if (payload.yInput) payload.yInput.value = String(y);
+            applyBannerPosition(guidesEl, x, y);
+        }
+
+        guidesEl.addEventListener('pointerdown', function (event) {
+            if (guidesEl.classList.contains('is-marked')) return;
+            var frame = event.target && event.target.closest ? event.target.closest('.admin-banner-guides__frame') : null;
+            if (!frame || !guidesEl.contains(frame)) return;
+
+            activePointerId = event.pointerId;
+            activeFrame = frame;
+
+            try {
+                frame.setPointerCapture(activePointerId);
+            } catch (e) {}
+
+            updateFromEvent(event);
+        });
+
+        guidesEl.addEventListener('pointermove', function (event) {
+            if (activePointerId === null) return;
+            if (event.pointerId !== activePointerId) return;
+            updateFromEvent(event);
+        });
+
+        function stop(event) {
+            if (activePointerId === null) return;
+            if (event.pointerId !== activePointerId) return;
+            activePointerId = null;
+            activeFrame = null;
+        }
+
+        guidesEl.addEventListener('pointerup', stop);
+        guidesEl.addEventListener('pointercancel', stop);
+    }
+
     function validateFile(file, maxBytes) {
         var allowedTypes = {
             'image/jpeg': true,
@@ -74,7 +171,9 @@
         var counterEl = root.querySelector('[data-dropzone-count]');
         var metaEl = root.querySelector('[data-dropzone-meta]');
         var previewMode = root.getAttribute('data-preview-size') || '';
+        var guidesVariant = root.getAttribute('data-banner-guides-variant') || '';
         var lastUrls = [];
+        var guidesEl = null;
 
         if (!(input instanceof HTMLInputElement)) return;
 
@@ -104,10 +203,12 @@
             revokeUrls(lastUrls);
             lastUrls = [];
             previewsEl.innerHTML = '';
+            var firstPreviewUrl = '';
 
             files.forEach(function (file) {
                 var url = createObjectUrl(file);
                 if (url) lastUrls.push(url);
+                if (!firstPreviewUrl && url) firstPreviewUrl = url;
                 var figure = document.createElement('figure');
                 figure.className = 'admin-dropzone__preview';
                 var img = document.createElement('img');
@@ -127,6 +228,78 @@
             } else {
                 previewsEl.style.gridTemplateColumns = '';
             }
+
+            if (previewMode === 'banner') {
+                updateBannerGuides(firstPreviewUrl);
+            } else {
+                updateBannerGuides('');
+            }
+        }
+
+        function createBannerGuides() {
+            if (guidesEl) return guidesEl;
+            guidesEl = document.createElement('div');
+            guidesEl.className = 'admin-banner-guides';
+            guidesEl.setAttribute('data-banner-guides', '1');
+            if (guidesVariant) {
+                guidesEl.setAttribute('data-banner-guides-variant', guidesVariant);
+            }
+            guidesEl.hidden = true;
+
+            var title = document.createElement('div');
+            title.className = 'admin-banner-guides__title';
+            title.textContent = 'Sugestão de banner';
+
+            var hint = document.createElement('div');
+            hint.className = 'admin-banner-guides__hint';
+            hint.textContent = 'Tamanho ideal: 1920×1080 (ou maior). O site corta automaticamente (cover). Clique em qualquer prévia para ajustar o ponto focal (o centro do corte).';
+
+            var grid = document.createElement('div');
+            grid.className = 'admin-banner-guides__grid';
+
+            function frame(label, ratioClass) {
+                var box = document.createElement('div');
+                box.className = 'admin-banner-guides__frame ' + ratioClass;
+                var marker = document.createElement('span');
+                marker.className = 'admin-banner-guides__marker';
+                var pill = document.createElement('span');
+                pill.className = 'admin-banner-guides__label';
+                pill.textContent = label;
+                box.appendChild(marker);
+                box.appendChild(pill);
+                return box;
+            }
+
+            grid.appendChild(frame('Desktop', 'admin-banner-guides__ratio-desktop'));
+            grid.appendChild(frame('Tablet', 'admin-banner-guides__ratio-tablet'));
+            grid.appendChild(frame('Celular', 'admin-banner-guides__ratio-mobile'));
+
+            guidesEl.appendChild(title);
+            guidesEl.appendChild(hint);
+            guidesEl.appendChild(grid);
+
+            if (previewsEl && previewsEl.parentNode) {
+                previewsEl.parentNode.insertBefore(guidesEl, previewsEl.nextSibling);
+            } else {
+                root.appendChild(guidesEl);
+            }
+
+            setupBannerGuidesInteraction(guidesEl);
+            return guidesEl;
+        }
+
+        function updateBannerGuides(url) {
+            if (previewMode !== 'banner') return;
+            var el = createBannerGuides();
+            var nextUrl = String(url || '').trim();
+            if (!nextUrl) {
+                el.hidden = true;
+                el.style.removeProperty('--admin-banner-guides-src');
+                return;
+            }
+            el.hidden = false;
+            el.style.setProperty('--admin-banner-guides-src', 'url("' + nextUrl.replace(/"/g, '\\"') + '")');
+            setupBannerGuidesInteraction(el);
         }
 
         function updateCounter(files) {
@@ -165,6 +338,7 @@
                     lastUrls = [];
                     previewsEl.innerHTML = '';
                 }
+                if (previewMode === 'banner') updateBannerGuides('');
                 updateCounter([]);
                 setErrors(errors.length ? errors : ['Selecione uma imagem válida.']);
                 return;
@@ -185,6 +359,7 @@
                 revokeUrls(lastUrls);
                 lastUrls = [];
                 if (previewsEl) previewsEl.innerHTML = '';
+                if (previewMode === 'banner') updateBannerGuides('');
                 updateCounter([]);
                 setErrors([]);
                 return;
@@ -243,18 +418,23 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         var zones = document.querySelectorAll('[data-admin-dropzone]');
-        if (!zones.length) return;
+        if (zones.length) {
+            document.addEventListener('dragover', function (event) {
+                if (isFileDrag(event)) event.preventDefault();
+            });
 
-        document.addEventListener('dragover', function (event) {
-            if (isFileDrag(event)) event.preventDefault();
-        });
+            document.addEventListener('drop', function (event) {
+                if (isFileDrag(event)) event.preventDefault();
+            });
 
-        document.addEventListener('drop', function (event) {
-            if (isFileDrag(event)) event.preventDefault();
-        });
+            zones.forEach(function (zone) {
+                setupDropzone(zone);
+            });
+        }
 
-        zones.forEach(function (zone) {
-            setupDropzone(zone);
+        var guides = document.querySelectorAll('[data-banner-guides]');
+        guides.forEach(function (guidesEl) {
+            setupBannerGuidesInteraction(guidesEl);
         });
     });
 })();

@@ -330,10 +330,10 @@
         }
 
         .admin-modal__uploads-item {
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
             align-items: center;
-            justify-content: space-between;
-            gap: .75rem;
+            gap: .55rem .75rem;
             padding: .55rem .65rem;
             border-radius: .65rem;
             border: 1px solid rgba(13, 27, 62, 0.1);
@@ -342,14 +342,71 @@
             color: rgba(13, 27, 62, 0.86);
         }
 
-        .admin-modal__uploads-item strong {
+        .admin-modal__upload-trigger {
+            appearance: none;
+            border: 0;
+            padding: 0;
+            background: transparent;
+            text-align: left;
+            font: inherit;
             font-weight: 700;
             color: #0d1b3e;
+            cursor: pointer;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .admin-modal__upload-trigger:hover,
+        .admin-modal__upload-trigger:focus-visible {
+            text-decoration: underline;
         }
 
         .admin-modal__uploads-item span {
             color: rgba(13, 27, 62, 0.68);
             white-space: nowrap;
+        }
+
+        .admin-modal__upload-editor {
+            grid-column: 1 / -1;
+            display: grid;
+            gap: .55rem;
+            padding-top: .55rem;
+            border-top: 1px dashed rgba(13, 27, 62, 0.18);
+        }
+
+        .admin-modal__upload-editor-row {
+            display: flex;
+            gap: .75rem;
+            align-items: flex-start;
+        }
+
+        .admin-modal__upload-thumb {
+            width: 72px;
+            height: 72px;
+            border-radius: .55rem;
+            border: 1px solid rgba(13, 27, 62, 0.14);
+            background: rgba(13, 27, 62, 0.03);
+            object-fit: cover;
+            flex: 0 0 auto;
+        }
+
+        .admin-modal__upload-input {
+            width: 100%;
+            border: 1px solid rgba(13, 27, 62, 0.15);
+            border-radius: .45rem;
+            padding: .6rem .7rem;
+            background: #ffffff;
+            color: var(--text);
+            font-family: "DM Sans", sans-serif;
+            font-size: .92rem;
+            outline: none;
+        }
+
+        .admin-modal__upload-input:focus {
+            border-color: rgba(184, 144, 42, 0.7);
+            box-shadow: 0 0 0 3px rgba(184, 144, 42, 0.14);
         }
 
         @media (max-width: 840px) {
@@ -376,7 +433,7 @@
     <div class="admin-pages-head">
         <h1>Projeto: {{ $project->title }}</h1>
         <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;justify-content:flex-end;">
-            <button class="btn" type="submit" form="project-main-form">Salvar</button>
+            <button class="btn" type="submit" form="project-main-form" data-project-save-btn>Salvar</button>
             <a class="btn btn-secondary" href="{{ route('admin.projects.edit') }}">Voltar para Projetos</a>
         </div>
     </div>
@@ -515,33 +572,7 @@
         </div>
     </section>
 
-    <div class="admin-modal" data-add-media-modal hidden>
-        <div class="admin-modal__panel" role="dialog" aria-modal="true" aria-label="Adicionar mídias">
-            <div class="admin-modal__head">
-                <h2 class="admin-modal__title">Adicionar mídias</h2>
-                <button class="admin-modal__close" type="button" data-add-media-modal-close aria-label="Fechar">×</button>
-            </div>
-
-            <div class="admin-modal__body">
-                <div class="admin-modal__status" data-add-media-status>Selecione as mídias e envie.</div>
-
-                <div class="admin-modal__grid">
-                    @include('modals._addmidia')
-                </div>
-
-                <div class="admin-surface">
-                    <div class="admin-section-head">
-                        <div>
-                            <div class="admin-section-kicker">Status</div>
-                            <h2>Envios</h2>
-                        </div>
-                        <button class="btn" type="button" data-add-media-finish>Concluir</button>
-                    </div>
-                    <div class="admin-modal__uploads" data-add-media-uploads></div>
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('modals._project_add_media_modal')
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -552,6 +583,7 @@
 
             var buttons = tabRoot.querySelectorAll('[data-admin-tab-trigger]');
             var panels = tabRoot.querySelectorAll('[data-admin-tab-panel]');
+            var saveBtn = document.querySelector('[data-project-save-btn]');
 
             function activateTab(target) {
                 buttons.forEach(function (button) {
@@ -564,6 +596,10 @@
                     var visible = panel.getAttribute('data-admin-tab-panel') === target;
                     panel.hidden = !visible;
                 });
+
+                if (saveBtn) {
+                    saveBtn.style.display = target === 'dados' ? '' : 'none';
+                }
             }
 
             buttons.forEach(function (button) {
@@ -572,18 +608,23 @@
                 });
             });
 
+            var activeBtn = tabRoot.querySelector('[data-admin-tab-trigger].is-active') || buttons[0];
+            if (activeBtn) {
+                activateTab(activeBtn.getAttribute('data-target'));
+            }
+
             var csrfMeta = document.querySelector('meta[name="csrf-token"]');
             var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
             if (!csrfToken) {
                 return;
             }
 
-            var addMediaModal = document.querySelector('[data-add-media-modal]');
+            var addMediaModal = document.querySelector('[data-project-add-media-modal]');
             var openAddMediaBtn = document.querySelector('[data-open-add-media]');
-            var closeAddMediaBtn = document.querySelector('[data-add-media-modal-close]');
-            var addMediaStatus = document.querySelector('[data-add-media-status]');
-            var addMediaUploads = document.querySelector('[data-add-media-uploads]');
-            var finishAddMediaBtn = document.querySelector('[data-add-media-finish]');
+            var addMediaStatus = addMediaModal ? addMediaModal.querySelector('[data-project-add-media-status]') : null;
+            var addMediaUploads = addMediaModal ? addMediaModal.querySelector('[data-project-add-media-uploads]') : null;
+            var addMediaCloseBtns = addMediaModal ? addMediaModal.querySelectorAll('[data-project-add-media-close]') : [];
+            var hadSuccessfulUpload = false;
 
             var imagesForm = addMediaModal ? addMediaModal.querySelector('[data-project-images-form]') : null;
             var uploadImagesBtn = addMediaModal ? addMediaModal.querySelector('[data-project-upload-images]') : null;
@@ -591,6 +632,11 @@
             var addVideoBtn = addMediaModal ? addMediaModal.querySelector('[data-project-add-video]') : null;
 
             var mediaUrl = @json(route('admin.projects.images.store', $project));
+            var mediaUpdateUrlTemplate = @json(url('/admin/projetos/cards/'.$project->id.'/imagens/__IMAGE__'));
+
+            function getMediaUpdateUrl(imageId) {
+                return mediaUpdateUrlTemplate.replace('__IMAGE__', String(imageId));
+            }
 
             function setAddMediaStatus(text) {
                 if (addMediaStatus) addMediaStatus.textContent = text;
@@ -602,23 +648,135 @@
                 document.documentElement.style.overflow = open ? 'hidden' : '';
             }
 
-            function appendUploadItem(label, status) {
+            function closeAddMediaModal() {
+                if (hadSuccessfulUpload) {
+                    setAddMediaStatus('Mídias adicionadas com sucesso.');
+                    window.setTimeout(function () {
+                        setAddMediaOpen(false);
+                        window.location.reload();
+                    }, 250);
+                    return;
+                }
+                setAddMediaOpen(false);
+            }
+
+            function appendUploadItem(label, status, opts) {
                 if (!addMediaUploads) return null;
+
                 var row = document.createElement('div');
                 row.className = 'admin-modal__uploads-item';
-                var left = document.createElement('strong');
-                left.textContent = label;
+
+                var trigger = document.createElement('button');
+                trigger.type = 'button';
+                trigger.className = 'admin-modal__upload-trigger';
+                trigger.textContent = label;
+
                 var right = document.createElement('span');
                 right.textContent = status;
-                row.appendChild(left);
+
+                row.appendChild(trigger);
                 row.appendChild(right);
+
+                var editor = null;
+                var descInput = null;
+
+                if (opts && opts.previewUrl) {
+                    editor = document.createElement('div');
+                    editor.className = 'admin-modal__upload-editor';
+                    editor.hidden = true;
+
+                    var editorRow = document.createElement('div');
+                    editorRow.className = 'admin-modal__upload-editor-row';
+
+                    var img = document.createElement('img');
+                    img.className = 'admin-modal__upload-thumb';
+                    img.alt = '';
+                    img.loading = 'lazy';
+                    img.decoding = 'async';
+                    img.src = opts.previewUrl;
+
+                    descInput = document.createElement('input');
+                    descInput.type = 'text';
+                    descInput.maxLength = 255;
+                    descInput.placeholder = 'Descrição da imagem';
+                    descInput.className = 'admin-modal__upload-input';
+                    descInput.disabled = true;
+
+                    editorRow.appendChild(img);
+                    editorRow.appendChild(descInput);
+                    editor.appendChild(editorRow);
+                    row.appendChild(editor);
+
+                    trigger.addEventListener('click', function () {
+                        editor.hidden = !editor.hidden;
+                        if (!editor.hidden) {
+                            descInput.focus();
+                        }
+                    });
+
+                    descInput.addEventListener('keydown', function (event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            descInput.blur();
+                        }
+                    });
+
+                    descInput.addEventListener('blur', async function () {
+                        if (descInput.disabled) return;
+                        var updateUrl = row.getAttribute('data-update-url') || '';
+                        if (!updateUrl) return;
+                        var description = String(descInput.value || '').trim();
+                        right.textContent = 'Salvando…';
+                        try {
+                            await putJson(updateUrl, { description: description || null });
+                            right.textContent = 'Descrição salva';
+                            window.setTimeout(function () {
+                                if (right.textContent === 'Descrição salva') {
+                                    right.textContent = 'Salvo';
+                                }
+                            }, 1200);
+                        } catch (e) {
+                            right.textContent = e && e.message ? e.message : 'Erro';
+                        }
+                    });
+                }
+
                 addMediaUploads.prepend(row);
-                return right;
+
+                return {
+                    row: row,
+                    statusNode: right,
+                    descInput: descInput,
+                    setReady: function (updateUrl) {
+                        row.setAttribute('data-update-url', updateUrl || '');
+                        if (descInput) descInput.disabled = !(updateUrl && updateUrl !== '');
+                    },
+                };
             }
 
             async function postJson(url, payload) {
                 var res = await fetch(url, {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify(payload || {}),
+                });
+                var json = await res.json().catch(function () {
+                    return null;
+                });
+                if (!res.ok) {
+                    var msg = (json && (json.message || json.error)) ? (json.message || json.error) : 'Erro';
+                    throw new Error(msg);
+                }
+                return json;
+            }
+
+            async function putJson(url, payload) {
+                var res = await fetch(url, {
+                    method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                         Accept: 'application/json',
@@ -657,104 +815,210 @@
 
             if (openAddMediaBtn && addMediaModal) {
                 openAddMediaBtn.addEventListener('click', function () {
+                    hadSuccessfulUpload = false;
                     if (addMediaUploads) addMediaUploads.innerHTML = '';
-                    setAddMediaStatus('Selecione as mídias e envie.');
+                    setAddMediaStatus('Selecione as mídias. As imagens serão enviadas automaticamente.');
                     setAddMediaOpen(true);
                 });
             }
 
-            if (closeAddMediaBtn) {
-                closeAddMediaBtn.addEventListener('click', function () {
-                    setAddMediaOpen(false);
+            addMediaCloseBtns.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    closeAddMediaModal();
                 });
-            }
+            });
 
             if (addMediaModal) {
                 addMediaModal.addEventListener('click', function (event) {
                     if (event.target === addMediaModal) {
-                        setAddMediaOpen(false);
+                        closeAddMediaModal();
                     }
                 });
             }
 
             document.addEventListener('keydown', function (event) {
                 if (event.key === 'Escape' && addMediaModal && !addMediaModal.hidden) {
-                    setAddMediaOpen(false);
+                    closeAddMediaModal();
                 }
             });
 
-            if (uploadImagesBtn && imagesForm) {
-                uploadImagesBtn.addEventListener('click', async function () {
-                    var fileInput = imagesForm.querySelector('input[type="file"]');
-                    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files || fileInput.files.length === 0) {
-                        setAddMediaStatus('Selecione ao menos uma imagem.');
-                        return;
+            var uploadingImages = false;
+            async function uploadSelectedImages() {
+                if (!imagesForm) return;
+                if (uploadingImages) return;
+
+                var fileInput = imagesForm.querySelector('input[type="file"]');
+                if (!(fileInput instanceof HTMLInputElement) || !fileInput.files || fileInput.files.length === 0) {
+                    setAddMediaStatus('Selecione ao menos uma imagem.');
+                    return;
+                }
+
+                uploadingImages = true;
+                if (uploadImagesBtn) uploadImagesBtn.disabled = true;
+                setAddMediaStatus('Enviando imagens…');
+                try {
+                    if (addMediaUploads && typeof addMediaUploads.scrollIntoView === 'function') {
+                        addMediaUploads.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
-                    var descInput = imagesForm.querySelector('input[name="description"]');
-                    var description = descInput && descInput.value ? String(descInput.value) : '';
+                } catch (e) {
+                }
 
-                    uploadImagesBtn.disabled = true;
-                    setAddMediaStatus('Enviando imagens…');
-
-                    var files = Array.from(fileInput.files);
-                    for (var i = 0; i < files.length; i += 1) {
-                        var file = files[i];
-                        var statusNode = appendUploadItem(file.name, 'Enviando…');
-                        try {
-                            var fd = new FormData();
-                            fd.append('file', file);
-                            if (description) fd.append('description', description);
-                            await postForm(mediaUrl, fd);
-                            if (statusNode) statusNode.textContent = 'Salvo';
-                        } catch (e) {
-                            if (statusNode) statusNode.textContent = e && e.message ? e.message : 'Erro';
-                        }
-                    }
-
-                    fileInput.value = '';
-                    uploadImagesBtn.disabled = false;
-                    setAddMediaStatus('Imagens enviadas.');
-                });
-            }
-
-            if (addVideoBtn && videoForm) {
-                addVideoBtn.addEventListener('click', async function () {
-                    var urlInput = videoForm.querySelector('input[name="youtube_url"]');
-                    if (!(urlInput instanceof HTMLInputElement)) return;
-                    var youtubeUrl = String(urlInput.value || '').trim();
-                    if (!youtubeUrl) {
-                        setAddMediaStatus('Informe um link do YouTube.');
-                        return;
-                    }
-                    var descInput = videoForm.querySelector('input[name="description"]');
-                    var description = descInput && descInput.value ? String(descInput.value) : '';
-
-                    addVideoBtn.disabled = true;
-                    setAddMediaStatus('Adicionando vídeo…');
-
-                    var statusNode = appendUploadItem('Vídeo do YouTube', 'Enviando…');
+                var files = Array.from(fileInput.files);
+                for (var i = 0; i < files.length; i += 1) {
+                    var file = files[i];
+                    var previewUrl = '';
                     try {
-                        await postJson(mediaUrl, {
-                            youtube_url: youtubeUrl,
-                            description: description || null,
-                        });
+                        previewUrl = URL.createObjectURL(file);
+                    } catch (e) {
+                    }
+                    var uploadItem = appendUploadItem(file.name, 'Enviando…', { previewUrl: previewUrl });
+                    var statusNode = uploadItem ? uploadItem.statusNode : null;
+                    try {
+                        var fd = new FormData();
+                        fd.append('file', file);
+                        var result = await postForm(mediaUrl, fd);
+                        var mediaId = result && result.media ? result.media.id : null;
+                        if (uploadItem && mediaId) {
+                            uploadItem.setReady(getMediaUpdateUrl(mediaId));
+                        }
                         if (statusNode) statusNode.textContent = 'Salvo';
-                        urlInput.value = '';
-                        if (descInput) descInput.value = '';
-                        setAddMediaStatus('Vídeo adicionado.');
+                        hadSuccessfulUpload = true;
                     } catch (e) {
                         if (statusNode) statusNode.textContent = e && e.message ? e.message : 'Erro';
-                        setAddMediaStatus(e && e.message ? e.message : 'Erro ao adicionar vídeo');
-                    } finally {
-                        addVideoBtn.disabled = false;
                     }
+                }
+
+                try {
+                    fileInput.value = '';
+                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                } catch (e) {
+                    fileInput.value = '';
+                }
+
+                uploadingImages = false;
+                if (uploadImagesBtn) uploadImagesBtn.disabled = false;
+                setAddMediaStatus('Imagens enviadas.');
+            }
+
+            if (uploadImagesBtn) {
+                uploadImagesBtn.addEventListener('click', function () {
+                    uploadSelectedImages();
                 });
             }
 
-            if (finishAddMediaBtn) {
-                finishAddMediaBtn.addEventListener('click', function () {
-                    window.location.reload();
+            if (imagesForm) {
+                var autoFileInput = imagesForm.querySelector('input[type="file"]');
+                if (autoFileInput instanceof HTMLInputElement) {
+                    autoFileInput.addEventListener('change', function () {
+                        if (!autoFileInput.files || autoFileInput.files.length === 0) return;
+                        window.setTimeout(function () {
+                            uploadSelectedImages();
+                        }, 0);
+                    });
+                }
+
+                var autoDropzone = imagesForm.querySelector('[data-admin-dropzone]');
+                if (autoDropzone) {
+                    autoDropzone.addEventListener('drop', function () {
+                        window.setTimeout(function () {
+                            uploadSelectedImages();
+                        }, 0);
+                    });
+                }
+            }
+
+            function extractYoutubeId(rawUrl) {
+                var url = String(rawUrl || '').trim();
+                if (!url) return '';
+
+                var match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{6,})/);
+                if (match && match[1]) return match[1];
+
+                try {
+                    var u = new URL(url);
+                    var v = u.searchParams.get('v');
+                    if (v) return v;
+                } catch (e) {
+                }
+
+                return '';
+            }
+
+            function getYoutubeThumb(rawUrl) {
+                var id = extractYoutubeId(rawUrl);
+                if (!id) return '';
+                return 'https://img.youtube.com/vi/' + id + '/hqdefault.jpg';
+            }
+
+            var addingYoutube = false;
+            async function addYoutubeFromInput() {
+                if (!videoForm || addingYoutube) return;
+
+                var urlInput = videoForm.querySelector('input[name="youtube_url"]');
+                if (!(urlInput instanceof HTMLInputElement)) return;
+
+                var youtubeUrl = String(urlInput.value || '').trim();
+                if (!youtubeUrl) {
+                    setAddMediaStatus('Informe um link do YouTube.');
+                    return;
+                }
+
+                var thumb = getYoutubeThumb(youtubeUrl);
+
+                addingYoutube = true;
+                if (addVideoBtn) addVideoBtn.disabled = true;
+                setAddMediaStatus('Adicionando vídeo…');
+                try {
+                    if (addMediaUploads && typeof addMediaUploads.scrollIntoView === 'function') {
+                        addMediaUploads.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                } catch (e) {
+                }
+
+                var uploadItem = appendUploadItem('Vídeo do YouTube', 'Enviando…', { previewUrl: thumb || '' });
+                var statusNode = uploadItem ? uploadItem.statusNode : null;
+                try {
+                    var result = await postJson(mediaUrl, { youtube_url: youtubeUrl });
+                    var mediaId = result && result.media ? result.media.id : null;
+                    if (uploadItem && mediaId) {
+                        uploadItem.setReady(getMediaUpdateUrl(mediaId));
+                    }
+                    if (statusNode) statusNode.textContent = 'Salvo';
+                    hadSuccessfulUpload = true;
+                    urlInput.value = '';
+                    setAddMediaStatus('Vídeo adicionado.');
+                } catch (e) {
+                    if (statusNode) statusNode.textContent = e && e.message ? e.message : 'Erro';
+                    setAddMediaStatus(e && e.message ? e.message : 'Erro ao adicionar vídeo');
+                } finally {
+                    addingYoutube = false;
+                    if (addVideoBtn) addVideoBtn.disabled = false;
+                }
+            }
+
+            if (addVideoBtn) {
+                addVideoBtn.addEventListener('click', function () {
+                    addYoutubeFromInput();
                 });
+            }
+
+            if (videoForm) {
+                var autoYoutubeInput = videoForm.querySelector('input[name="youtube_url"]');
+                if (autoYoutubeInput instanceof HTMLInputElement) {
+                    autoYoutubeInput.addEventListener('keydown', function (event) {
+                        if (event.key !== 'Enter') return;
+                        event.preventDefault();
+                        window.setTimeout(function () {
+                            addYoutubeFromInput();
+                        }, 0);
+                    });
+                    autoYoutubeInput.addEventListener('blur', function () {
+                        if (!String(autoYoutubeInput.value || '').trim()) return;
+                        window.setTimeout(function () {
+                            addYoutubeFromInput();
+                        }, 0);
+                    });
+                }
             }
 
             var mediaList = document.querySelector('[data-media-list]');

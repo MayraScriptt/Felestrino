@@ -48,22 +48,8 @@
             gap: 1rem;
         }
 
-        .admin-title-banner {
-            width: 100%;
-            border-radius: .8rem;
-            overflow: hidden;
-            border: 1px solid rgba(13, 27, 62, 0.12);
-            background: linear-gradient(180deg, rgba(20, 33, 80, 0.12), rgba(184, 144, 42, 0.10));
+        .admin-banner-guides {
             margin-bottom: .9rem;
-            position: relative;
-        }
-
-        .admin-title-banner img {
-            width: 100%;
-            height: auto;
-            display: block;
-            aspect-ratio: 21 / 7;
-            object-fit: cover;
         }
 
         .admin-banner-remove-btn {
@@ -92,12 +78,7 @@
             border-color: rgba(212, 171, 74, 0.65);
         }
 
-        .admin-title-banner.is-marked img {
-            filter: grayscale(1);
-            opacity: .72;
-        }
-
-        .admin-title-banner.is-marked .admin-banner-remove-btn {
+        .admin-banner-guides.is-marked .admin-banner-remove-btn {
             background: rgba(153, 27, 27, 0.72);
             border-color: rgba(255, 255, 255, 0.55);
         }
@@ -110,12 +91,6 @@
             border-radius: .65rem;
             background: rgba(184, 144, 42, 0.12);
             border: 1px solid rgba(184, 144, 42, 0.22);
-        }
-
-        @media (max-width: 768px) {
-            .admin-title-banner img {
-                aspect-ratio: 16 / 9;
-            }
         }
 
         .projects-grid {
@@ -376,10 +351,10 @@
         }
 
         .admin-modal__uploads-item {
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
             align-items: center;
-            justify-content: space-between;
-            gap: .75rem;
+            gap: .55rem .75rem;
             padding: .55rem .65rem;
             border-radius: .65rem;
             border: 1px solid rgba(13, 27, 62, 0.1);
@@ -388,14 +363,71 @@
             color: rgba(13, 27, 62, 0.86);
         }
 
-        .admin-modal__uploads-item strong {
+        .admin-modal__upload-trigger {
+            appearance: none;
+            border: 0;
+            padding: 0;
+            background: transparent;
+            text-align: left;
+            font: inherit;
             font-weight: 700;
             color: #0d1b3e;
+            cursor: pointer;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .admin-modal__upload-trigger:hover,
+        .admin-modal__upload-trigger:focus-visible {
+            text-decoration: underline;
         }
 
         .admin-modal__uploads-item span {
             color: rgba(13, 27, 62, 0.68);
             white-space: nowrap;
+        }
+
+        .admin-modal__upload-editor {
+            grid-column: 1 / -1;
+            display: grid;
+            gap: .55rem;
+            padding-top: .55rem;
+            border-top: 1px dashed rgba(13, 27, 62, 0.18);
+        }
+
+        .admin-modal__upload-editor-row {
+            display: flex;
+            gap: .75rem;
+            align-items: flex-start;
+        }
+
+        .admin-modal__upload-thumb {
+            width: 72px;
+            height: 72px;
+            border-radius: .55rem;
+            border: 1px solid rgba(13, 27, 62, 0.14);
+            background: rgba(13, 27, 62, 0.03);
+            object-fit: cover;
+            flex: 0 0 auto;
+        }
+
+        .admin-modal__upload-input {
+            width: 100%;
+            border: 1px solid rgba(13, 27, 62, 0.15);
+            border-radius: .45rem;
+            padding: .6rem .7rem;
+            background: #ffffff;
+            color: var(--text);
+            font-family: "DM Sans", sans-serif;
+            font-size: .92rem;
+            outline: none;
+        }
+
+        .admin-modal__upload-input:focus {
+            border-color: rgba(184, 144, 42, 0.7);
+            box-shadow: 0 0 0 3px rgba(184, 144, 42, 0.14);
         }
 
         @media (max-width: 840px) {
@@ -417,6 +449,10 @@
             return asset('storage/'.$path);
         };
         $bannerSrc = $resolveBannerSrc($projectPage->banner_path ?? null);
+        $bannerPosX = (int) old('banner_position_x', $projectPage->banner_position_x ?? 50);
+        $bannerPosY = (int) old('banner_position_y', $projectPage->banner_position_y ?? 50);
+        $bannerPosX = max(0, min(100, $bannerPosX));
+        $bannerPosY = max(0, min(100, $bannerPosY));
     @endphp
 
     <div class="admin-pages-head">
@@ -439,21 +475,45 @@
                     <button class="btn" type="submit" form="projects-page-form">Salvar página</button>
                 </div>
 
-                @if ($bannerSrc)
-                    <div class="admin-title-banner" data-banner-root>
-                        <img src="{{ $bannerSrc }}" alt="" loading="lazy" decoding="async">
-                        <button class="admin-banner-remove-btn" type="button" data-banner-remove aria-label="Remover banner">×</button>
-                    </div>
-                    <input type="hidden" name="banner_remove" value="0" form="projects-page-form" data-banner-remove-input>
-                    <div class="admin-banner-remove-hint" data-banner-hint hidden>Salve para que o banner seja excluído</div>
-                @endif
-
                 <form id="projects-page-form" class="admin-form" action="{{ route('admin.projects.update-page') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
+                    <input type="hidden" name="banner_position_x" value="{{ $bannerPosX }}">
+                    <input type="hidden" name="banner_position_y" value="{{ $bannerPosY }}">
+
+                    @if ($bannerSrc)
+                        <div
+                            class="admin-banner-guides"
+                            data-banner-root
+                            data-banner-guides
+                            data-banner-guides-variant="page"
+                            style="--admin-banner-guides-src: url('{{ $bannerSrc }}'); --admin-banner-guides-x: {{ $bannerPosX }}%; --admin-banner-guides-y: {{ $bannerPosY }}%; --admin-banner-guides-pos: {{ $bannerPosX }}% {{ $bannerPosY }}%;"
+                        >
+                            <button class="admin-banner-remove-btn" type="button" data-banner-remove aria-label="Remover banner">×</button>
+                            <div class="admin-banner-guides__title">Prévia do banner</div>
+                            <div class="admin-banner-guides__hint">Clique em qualquer prévia para ajustar o ponto focal (o centro do corte). O site usa cover.</div>
+                            <div class="admin-banner-guides__grid">
+                                <div class="admin-banner-guides__frame admin-banner-guides__ratio-desktop">
+                                    <span class="admin-banner-guides__marker" aria-hidden="true"></span>
+                                    <span class="admin-banner-guides__label">Desktop</span>
+                                </div>
+                                <div class="admin-banner-guides__frame admin-banner-guides__ratio-tablet">
+                                    <span class="admin-banner-guides__marker" aria-hidden="true"></span>
+                                    <span class="admin-banner-guides__label">Tablet</span>
+                                </div>
+                                <div class="admin-banner-guides__frame admin-banner-guides__ratio-mobile">
+                                    <span class="admin-banner-guides__marker" aria-hidden="true"></span>
+                                    <span class="admin-banner-guides__label">Celular</span>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" name="banner_remove" value="0" data-banner-remove-input>
+                        <div class="admin-banner-remove-hint" data-banner-hint hidden>Salve para que o banner seja excluído</div>
+                    @endif
+
                     <label class="admin-dropzone-field">Banner do título (opcional)
                         <input type="file" name="banner_file" accept=".jpg,.jpeg,.png,.webp,.gif" hidden>
-                        <div class="admin-dropzone" data-admin-dropzone data-preview-size="banner">
+                        <div class="admin-dropzone" data-admin-dropzone data-preview-size="banner" data-banner-guides-variant="page">
                             <div class="admin-dropzone__area" data-dropzone-area>
                                 <div class="admin-dropzone__head">
                                     <div class="admin-dropzone__title">Arraste e solte a imagem aqui</div>
@@ -464,6 +524,7 @@
                             <div class="admin-dropzone__previews" data-dropzone-previews></div>
                         </div>
                     </label>
+                    <div class="admin-home-upload__hint">Tamanho ideal: 1920×1080 (16:9) ou maior • o site corta automaticamente (cover)</div>
                     <label>Título
                         <input type="text" name="title" maxlength="140" value="{{ old('title', $projectPage->title ?? 'Projetos') }}">
                     </label>
@@ -533,7 +594,7 @@
             </div>
 
             <div class="admin-modal__body">
-                <div class="admin-modal__status" data-project-modal-status>Preencha os dados e crie o projeto.</div>
+                <div class="admin-modal__status" data-project-modal-status>Adicione mídias se quiser e finalize criando o projeto.</div>
 
                 <div class="admin-modal__grid admin-modal__grid--single" data-project-modal-step="create">
                     <article class="admin-surface">
@@ -544,7 +605,7 @@
                             </div>
                         </div>
 
-                        <form class="admin-form" data-project-create-form>
+                        <form class="admin-form" data-project-create-form id="project-create-form">
                             <label>Título
                                 <input type="text" name="title" maxlength="140" required>
                             </label>
@@ -561,12 +622,11 @@
                                 <input type="checkbox" name="is_active" value="1" checked>
                                 Projeto ativo
                             </label>
-                            <button class="btn" type="submit" data-project-create-submit>Criar projeto</button>
                         </form>
                     </article>
                 </div>
 
-                <div class="admin-modal__grid admin-modal__grid--single" data-project-modal-step="media" hidden>
+                <div class="admin-modal__grid admin-modal__grid--single" data-project-modal-step="media">
                     <article class="admin-surface">
                         <div class="admin-section-head">
                             <div>
@@ -576,40 +636,19 @@
                             <button class="btn" type="button" data-project-open-add-media>Adicionar mídias</button>
                         </div>
                         <p>Use o botão acima para adicionar mídias ao projeto.</p>
+                        <div class="alert-success" data-project-media-indicator hidden></div>
                     </article>
                 </div>
 
+                <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;justify-content:flex-end;">
+                    <button class="btn" type="submit" form="project-create-form" data-project-create-submit>Criar projeto</button>
+                </div>
+
             </div>
         </div>
     </div>
 
-    <div class="admin-modal" data-project-add-media-modal hidden>
-        <div class="admin-modal__panel" role="dialog" aria-modal="true" aria-label="Adicionar mídias">
-            <div class="admin-modal__head">
-                <h2 class="admin-modal__title">Adicionar mídias</h2>
-                <button class="admin-modal__close" type="button" data-project-add-media-close aria-label="Fechar">×</button>
-            </div>
-
-            <div class="admin-modal__body">
-                <div class="admin-modal__status" data-project-add-media-status>Selecione as mídias e envie.</div>
-
-                <div class="admin-modal__grid">
-                    @include('modals._addmidia')
-                </div>
-
-                <div class="admin-surface">
-                    <div class="admin-section-head">
-                        <div>
-                            <div class="admin-section-kicker">Status</div>
-                            <h2>Envios</h2>
-                        </div>
-                        <button class="btn" type="button" data-project-add-media-close>Fechar</button>
-                    </div>
-                    <div class="admin-modal__uploads" data-project-add-media-uploads></div>
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('modals._project_add_media_modal')
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -617,6 +656,36 @@
             var bannerRemoveBtn = document.querySelector('[data-banner-remove]');
             var bannerRemoveInput = document.querySelector('[data-banner-remove-input]');
             var bannerHint = document.querySelector('[data-banner-hint]');
+            var flashKey = 'admin_flash_status';
+            var flashParam = 'project_created';
+            var flashMessage = 'Projeto criado com sucesso';
+
+            (function () {
+                try {
+                    var msg = '';
+                    try {
+                        var url = new URL(window.location.href);
+                        if (url.searchParams.get(flashParam) === '1') {
+                            msg = flashMessage;
+                            url.searchParams.delete(flashParam);
+                            window.history.replaceState({}, '', url.toString());
+                        }
+                    } catch (e) {
+                    }
+                    if (!msg) {
+                        msg = window.sessionStorage ? window.sessionStorage.getItem(flashKey) : '';
+                        if (window.sessionStorage) window.sessionStorage.removeItem(flashKey);
+                    }
+                    if (!msg) return;
+                    var container = document.querySelector('.admin-content');
+                    if (!container) return;
+                    var el = document.createElement('div');
+                    el.className = 'alert-success';
+                    el.textContent = msg;
+                    container.prepend(el);
+                } catch (e) {
+                }
+            })();
 
             var tabRoot = document.querySelector('[data-admin-tabs="projects"]');
             if (tabRoot) {
@@ -680,8 +749,27 @@
 
             var createUrl = @json(route('admin.projects.cards.store'));
             var mediaUrlTemplate = @json(url('/admin/projetos/cards/__PROJECT__/imagens'));
+            var mediaUpdateUrlTemplate = @json(url('/admin/projetos/cards/__PROJECT__/imagens/__IMAGE__'));
+            var tempMediaUrl = @json(route('admin.projects.temp-media.store'));
+            var tempMediaUpdateUrlTemplate = @json(url('/admin/projetos/midias-temporarias/__MEDIA__'));
 
             var createdProject = null;
+            var draftToken = '';
+            var hadSuccessfulUpload = false;
+            var successfulMediaCount = 0;
+            var mediaIndicatorEl = modal ? modal.querySelector('[data-project-media-indicator]') : null;
+
+            function makeDraftToken() {
+                if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                    return window.crypto.randomUUID();
+                }
+                var tpl = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
+                return tpl.replace(/[xy]/g, function (c) {
+                    var r = Math.random() * 16 | 0;
+                    var v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
 
             function setStatus(text) {
                 if (statusEl) statusEl.textContent = text;
@@ -689,6 +777,37 @@
 
             function setMediaStatus(text) {
                 if (addMediaStatusEl) addMediaStatusEl.textContent = text;
+            }
+
+            function setMediaIndicator(text) {
+                if (!mediaIndicatorEl) return;
+                var msg = String(text || '').trim();
+                if (!msg) {
+                    mediaIndicatorEl.hidden = true;
+                    mediaIndicatorEl.textContent = '';
+                    return;
+                }
+                mediaIndicatorEl.hidden = false;
+                mediaIndicatorEl.textContent = msg;
+            }
+
+            function bumpMediaIndicator(countToAdd) {
+                var count = Number.parseInt(String(countToAdd || '0'), 10);
+                if (Number.isNaN(count) || count <= 0) return;
+                successfulMediaCount += count;
+                hadSuccessfulUpload = true;
+
+                var msg = successfulMediaCount === 1
+                    ? '1 mídia adicionada com sucesso.'
+                    : successfulMediaCount + ' mídias adicionadas com sucesso.';
+
+                if (!createdProject || !createdProject.id) {
+                    msg += ' (serão vinculadas ao projeto ao clicar em "Criar projeto")';
+                }
+
+                setMediaIndicator(msg);
+                if (createSubmit && createSubmit.disabled) return;
+                setStatus(msg);
             }
 
             function setOpen(open) {
@@ -703,17 +822,40 @@
                 document.documentElement.style.overflow = (open || (modal && !modal.hidden)) ? 'hidden' : '';
             }
 
+            function closeAddMediaModal() {
+                if (hadSuccessfulUpload) {
+                    setMediaStatus('Mídias adicionadas com sucesso.');
+                    if (successfulMediaCount > 0) {
+                        if (mediaIndicatorEl && mediaIndicatorEl.textContent) {
+                            setStatus(mediaIndicatorEl.textContent);
+                        } else {
+                            setStatus('Mídias adicionadas com sucesso.');
+                        }
+                    } else {
+                        setStatus('Mídias adicionadas com sucesso.');
+                    }
+                    window.setTimeout(function () {
+                        setAddMediaOpen(false);
+                    }, 250);
+                    return;
+                }
+                setAddMediaOpen(false);
+            }
+
             function showCreateStep() {
                 createdProject = null;
+                draftToken = makeDraftToken();
+                successfulMediaCount = 0;
+                setMediaIndicator('');
                 if (stepCreate) stepCreate.hidden = false;
                 stepMediaBlocks.forEach(function (el) {
-                    el.hidden = true;
+                    el.hidden = false;
                 });
                 if (openEditLink) {
                     openEditLink.hidden = true;
                     openEditLink.setAttribute('href', '#');
                 }
-                setStatus('Preencha os dados e crie o projeto.');
+                setStatus('Adicione mídias se quiser e finalize criando o projeto.');
             }
 
             function showMediaStep(project) {
@@ -729,22 +871,108 @@
                 setStatus('Projeto criado. Use o botão "Adicionar mídias" para enviar imagens e vídeos.');
             }
 
-            function appendUploadItemTo(container, label, status) {
+            function appendUploadItemTo(container, label, status, opts) {
                 if (!container) return null;
+
                 var row = document.createElement('div');
                 row.className = 'admin-modal__uploads-item';
-                var left = document.createElement('strong');
-                left.textContent = label;
+
+                var trigger = document.createElement('button');
+                trigger.type = 'button';
+                trigger.className = 'admin-modal__upload-trigger';
+                trigger.textContent = label;
+
                 var right = document.createElement('span');
                 right.textContent = status;
-                row.appendChild(left);
+
+                row.appendChild(trigger);
                 row.appendChild(right);
+
+                var editor = null;
+                var descInput = null;
+
+                if (opts && opts.previewUrl) {
+                    editor = document.createElement('div');
+                    editor.className = 'admin-modal__upload-editor';
+                    editor.hidden = true;
+
+                    var editorRow = document.createElement('div');
+                    editorRow.className = 'admin-modal__upload-editor-row';
+
+                    var img = document.createElement('img');
+                    img.className = 'admin-modal__upload-thumb';
+                    img.alt = '';
+                    img.loading = 'lazy';
+                    img.decoding = 'async';
+                    img.src = opts.previewUrl;
+
+                    descInput = document.createElement('input');
+                    descInput.type = 'text';
+                    descInput.maxLength = 255;
+                    descInput.placeholder = 'Descrição da imagem';
+                    descInput.className = 'admin-modal__upload-input';
+                    descInput.disabled = true;
+
+                    editorRow.appendChild(img);
+                    editorRow.appendChild(descInput);
+                    editor.appendChild(editorRow);
+                    row.appendChild(editor);
+
+                    trigger.addEventListener('click', function () {
+                        editor.hidden = !editor.hidden;
+                        if (!editor.hidden) {
+                            descInput.focus();
+                        }
+                    });
+
+                    descInput.addEventListener('keydown', function (event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            descInput.blur();
+                        }
+                    });
+
+                    descInput.addEventListener('blur', async function () {
+                        if (descInput.disabled) return;
+                        var updateUrl = row.getAttribute('data-update-url') || '';
+                        if (!updateUrl) return;
+                        var description = String(descInput.value || '').trim();
+                        right.textContent = 'Salvando…';
+                        try {
+                            var kind = row.getAttribute('data-media-kind') || '';
+                            if (kind === 'temp') {
+                                await putJson(updateUrl, { draft_token: draftToken, description: description || null });
+                            } else {
+                                await putJson(updateUrl, { description: description || null });
+                            }
+                            right.textContent = 'Descrição salva';
+                            window.setTimeout(function () {
+                                if (right.textContent === 'Descrição salva') {
+                                    right.textContent = 'Salvo';
+                                }
+                            }, 1200);
+                        } catch (e) {
+                            right.textContent = e && e.message ? e.message : 'Erro';
+                        }
+                    });
+                }
+
                 container.prepend(row);
-                return right;
+
+                return {
+                    row: row,
+                    statusNode: right,
+                    descInput: descInput,
+                    setReady: function (mediaKind, updateUrl) {
+                        row.setAttribute('data-media-kind', mediaKind || '');
+                        row.setAttribute('data-update-url', updateUrl || '');
+                        if (descInput) descInput.disabled = !(updateUrl && updateUrl !== '');
+                    },
+                };
             }
 
-            function appendUploadItem(label, status) {
-                return appendUploadItemTo(addMediaUploadsEl, label, status);
+            function appendUploadItem(label, status, opts) {
+                return appendUploadItemTo(addMediaUploadsEl, label, status, opts);
             }
 
             function setUploadStatus(node, text) {
@@ -756,9 +984,39 @@
                 return mediaUrlTemplate.replace('__PROJECT__', String(projectId));
             }
 
+            function getMediaUpdateUrl(projectId, imageId) {
+                return mediaUpdateUrlTemplate
+                    .replace('__PROJECT__', String(projectId))
+                    .replace('__IMAGE__', String(imageId));
+            }
+
+            function getTempMediaUpdateUrl(mediaId) {
+                return tempMediaUpdateUrlTemplate.replace('__MEDIA__', String(mediaId));
+            }
+
             async function postJson(url, payload) {
                 var res = await fetch(url, {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify(payload || {}),
+                });
+                var json = await res.json().catch(function () {
+                    return null;
+                });
+                if (!res.ok) {
+                    var msg = (json && (json.message || json.error)) ? (json.message || json.error) : 'Erro';
+                    throw new Error(msg);
+                }
+                return json;
+            }
+
+            async function putJson(url, payload) {
+                var res = await fetch(url, {
+                    method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                         Accept: 'application/json',
@@ -819,7 +1077,7 @@
             if (addMediaModal) {
                 addMediaModal.addEventListener('click', function (event) {
                     if (event.target === addMediaModal) {
-                        setAddMediaOpen(false);
+                        closeAddMediaModal();
                     }
                 });
             }
@@ -829,17 +1087,18 @@
                 if (!(target instanceof HTMLElement)) return;
 
                 if (target.closest('[data-project-add-media-close]')) {
-                    setAddMediaOpen(false);
+                    closeAddMediaModal();
                     return;
                 }
 
                 if (target.closest('[data-project-open-add-media]')) {
-                    if (!createdProject || !createdProject.id) {
-                        setStatus('Crie o projeto antes de enviar mídias.');
-                        return;
-                    }
+                    hadSuccessfulUpload = false;
                     if (addMediaUploadsEl) addMediaUploadsEl.innerHTML = '';
-                    setMediaStatus('Selecione as mídias e envie.');
+                    if (createdProject && createdProject.id) {
+                        setMediaStatus('Selecione as mídias. As imagens serão enviadas automaticamente.');
+                    } else {
+                        setMediaStatus('As mídias serão salvas como rascunho até você criar o projeto.');
+                    }
                     setAddMediaOpen(true);
                 }
             });
@@ -849,7 +1108,7 @@
                     setOpen(false);
                 }
                 if (event.key === 'Escape' && addMediaModal && !addMediaModal.hidden) {
-                    setAddMediaOpen(false);
+                    closeAddMediaModal();
                 }
             });
 
@@ -857,6 +1116,10 @@
                 createForm.addEventListener('submit', async function (event) {
                     event.preventDefault();
                     if (!csrfToken) return;
+                    if (createdProject && createdProject.id) {
+                        setStatus('Este projeto já foi criado.');
+                        return;
+                    }
                     if (createSubmit) createSubmit.disabled = true;
                     setStatus('Criando projeto…');
 
@@ -872,11 +1135,28 @@
                     if (!payload.is_active) {
                         payload.is_active = false;
                     }
+                    if (draftToken) {
+                        payload.draft_token = draftToken;
+                    }
 
                     try {
                         var result = await postJson(createUrl, payload);
                         if (result && result.project) {
-                            showMediaStep(result.project);
+                            createdProject = result.project;
+                            try {
+                                if (window.sessionStorage) window.sessionStorage.setItem(flashKey, flashMessage);
+                            } catch (e) {
+                            }
+                            setAddMediaOpen(false);
+                            setOpen(false);
+                            try {
+                                var url = new URL(window.location.href);
+                                url.searchParams.set(flashParam, '1');
+                                window.location.href = url.toString();
+                            } catch (e) {
+                                window.location.reload();
+                            }
+                            return;
                         } else {
                             setStatus('Projeto criado.');
                         }
@@ -888,82 +1168,208 @@
                 });
             }
 
-            if (uploadImagesBtn && imagesForm) {
-                uploadImagesBtn.addEventListener('click', async function () {
-                    if (!createdProject || !createdProject.id) {
-                        setStatus('Crie o projeto antes de enviar mídias.');
-                        return;
+            var uploadingImages = false;
+            async function uploadSelectedImages() {
+                if (!imagesForm) return;
+                if (uploadingImages) return;
+
+                var fileInput = imagesForm.querySelector('input[type="file"]');
+                if (!(fileInput instanceof HTMLInputElement) || !fileInput.files || fileInput.files.length === 0) {
+                    setMediaStatus('Selecione ao menos uma imagem.');
+                    return;
+                }
+
+                uploadingImages = true;
+                if (uploadImagesBtn) uploadImagesBtn.disabled = true;
+                setMediaStatus('Enviando imagens…');
+                try {
+                    if (addMediaUploadsEl && typeof addMediaUploadsEl.scrollIntoView === 'function') {
+                        addMediaUploadsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
-                    var fileInput = imagesForm.querySelector('input[type="file"]');
-                    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files || fileInput.files.length === 0) {
-                        setMediaStatus('Selecione ao menos uma imagem.');
-                        return;
+                } catch (e) {
+                }
+
+                var url = (createdProject && createdProject.id) ? getMediaUrl(createdProject.id) : tempMediaUrl;
+                var files = Array.from(fileInput.files);
+                var batchSuccessCount = 0;
+
+                for (var i = 0; i < files.length; i += 1) {
+                    var file = files[i];
+                    var previewUrl = '';
+                    try {
+                        previewUrl = URL.createObjectURL(file);
+                    } catch (e) {
                     }
-                    var descInput = imagesForm.querySelector('input[name="description"]');
-                    var description = descInput && descInput.value ? String(descInput.value) : '';
-
-                    uploadImagesBtn.disabled = true;
-                    setMediaStatus('Enviando imagens…');
-
-                    var url = getMediaUrl(createdProject.id);
-                    var files = Array.from(fileInput.files);
-
-                    for (var i = 0; i < files.length; i += 1) {
-                        var file = files[i];
-                        var statusNode = appendUploadItem(file.name, 'Enviando…');
-                        try {
-                            var fd = new FormData();
-                            fd.append('file', file);
-                            if (description) fd.append('description', description);
-                            await postForm(url, fd);
-                            setUploadStatus(statusNode, 'Salvo');
-                        } catch (e) {
-                            setUploadStatus(statusNode, e && e.message ? e.message : 'Erro');
+                    var uploadItem = appendUploadItem(file.name, 'Enviando…', { previewUrl: previewUrl });
+                    var statusNode = uploadItem ? uploadItem.statusNode : null;
+                    try {
+                        var fd = new FormData();
+                        fd.append('file', file);
+                        if (!createdProject || !createdProject.id) {
+                            fd.append('draft_token', draftToken);
                         }
+                        var result = await postForm(url, fd);
+                        var mediaId = result && result.media ? result.media.id : null;
+                        if (uploadItem && mediaId) {
+                            if (createdProject && createdProject.id) {
+                                uploadItem.setReady('project', getMediaUpdateUrl(createdProject.id, mediaId));
+                            } else {
+                                uploadItem.setReady('temp', getTempMediaUpdateUrl(mediaId));
+                            }
+                        }
+                        setUploadStatus(statusNode, 'Salvo');
+                        hadSuccessfulUpload = true;
+                        batchSuccessCount += 1;
+                    } catch (e) {
+                        setUploadStatus(statusNode, e && e.message ? e.message : 'Erro');
                     }
+                }
 
+                try {
                     fileInput.value = '';
-                    uploadImagesBtn.disabled = false;
-                    setMediaStatus('Imagens enviadas.');
+                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                } catch (e) {
+                    fileInput.value = '';
+                }
+
+                uploadingImages = false;
+                if (uploadImagesBtn) uploadImagesBtn.disabled = false;
+                setMediaStatus('Imagens adicionadas com sucesso.');
+                if (batchSuccessCount > 0) {
+                    bumpMediaIndicator(batchSuccessCount);
+                }
+            }
+
+            if (uploadImagesBtn) {
+                uploadImagesBtn.addEventListener('click', function () {
+                    uploadSelectedImages();
                 });
+            }
+
+            if (imagesForm) {
+                var autoFileInput = imagesForm.querySelector('input[type="file"]');
+                if (autoFileInput instanceof HTMLInputElement) {
+                    autoFileInput.addEventListener('change', function () {
+                        if (!autoFileInput.files || autoFileInput.files.length === 0) return;
+                        window.setTimeout(function () {
+                            uploadSelectedImages();
+                        }, 0);
+                    });
+                }
+
+                var autoDropzone = imagesForm.querySelector('[data-admin-dropzone]');
+                if (autoDropzone) {
+                    autoDropzone.addEventListener('drop', function () {
+                        window.setTimeout(function () {
+                            uploadSelectedImages();
+                        }, 0);
+                    });
+                }
+            }
+
+            function extractYoutubeId(rawUrl) {
+                var url = String(rawUrl || '').trim();
+                if (!url) return '';
+
+                var match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{6,})/);
+                if (match && match[1]) return match[1];
+
+                try {
+                    var u = new URL(url);
+                    var v = u.searchParams.get('v');
+                    if (v) return v;
+                } catch (e) {
+                }
+
+                return '';
+            }
+
+            function getYoutubeThumb(rawUrl) {
+                var id = extractYoutubeId(rawUrl);
+                if (!id) return '';
+                return 'https://img.youtube.com/vi/' + id + '/hqdefault.jpg';
             }
 
             if (addVideoBtn && videoForm) {
                 addVideoBtn.addEventListener('click', async function () {
-                    if (!createdProject || !createdProject.id) {
-                        setStatus('Crie o projeto antes de adicionar vídeos.');
-                        return;
-                    }
-                    var urlInput = videoForm.querySelector('input[name="youtube_url"]');
-                    if (!(urlInput instanceof HTMLInputElement)) return;
-                    var youtubeUrl = String(urlInput.value || '').trim();
-                    if (!youtubeUrl) {
-                        setMediaStatus('Informe um link do YouTube.');
-                        return;
-                    }
-                    var descInput = videoForm.querySelector('input[name="description"]');
-                    var description = descInput && descInput.value ? String(descInput.value) : '';
-
-                    addVideoBtn.disabled = true;
-                    setMediaStatus('Adicionando vídeo…');
-
-                    var statusNode = appendUploadItem('Vídeo do YouTube', 'Enviando…');
-                    try {
-                        await postJson(getMediaUrl(createdProject.id), {
-                            youtube_url: youtubeUrl,
-                            description: description || null,
-                        });
-                        setUploadStatus(statusNode, 'Salvo');
-                        urlInput.value = '';
-                        if (descInput) descInput.value = '';
-                        setMediaStatus('Vídeo adicionado.');
-                    } catch (e) {
-                        setUploadStatus(statusNode, e && e.message ? e.message : 'Erro');
-                        setMediaStatus(e && e.message ? e.message : 'Erro ao adicionar vídeo');
-                    } finally {
-                        addVideoBtn.disabled = false;
-                    }
+                    addYoutubeFromInput();
                 });
+            }
+
+            var addingYoutube = false;
+            async function addYoutubeFromInput() {
+                if (!videoForm || addingYoutube) return;
+
+                var urlInput = videoForm.querySelector('input[name="youtube_url"]');
+                if (!(urlInput instanceof HTMLInputElement)) return;
+
+                var youtubeUrl = String(urlInput.value || '').trim();
+                if (!youtubeUrl) {
+                    setMediaStatus('Informe um link do YouTube.');
+                    return;
+                }
+
+                var thumb = getYoutubeThumb(youtubeUrl);
+
+                addingYoutube = true;
+                if (addVideoBtn) addVideoBtn.disabled = true;
+                setMediaStatus('Adicionando vídeo…');
+                try {
+                    if (addMediaUploadsEl && typeof addMediaUploadsEl.scrollIntoView === 'function') {
+                        addMediaUploadsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                } catch (e) {
+                }
+
+                var uploadItem = appendUploadItem('Vídeo do YouTube', 'Enviando…', { previewUrl: thumb || '' });
+                var statusNode = uploadItem ? uploadItem.statusNode : null;
+
+                try {
+                    var url = (createdProject && createdProject.id) ? getMediaUrl(createdProject.id) : tempMediaUrl;
+                    var payload = { youtube_url: youtubeUrl };
+                    if (!createdProject || !createdProject.id) {
+                        payload.draft_token = draftToken;
+                    }
+                    var result = await postJson(url, payload);
+                    var mediaId = result && result.media ? result.media.id : null;
+                    if (uploadItem && mediaId) {
+                        if (createdProject && createdProject.id) {
+                            uploadItem.setReady('project', getMediaUpdateUrl(createdProject.id, mediaId));
+                        } else {
+                            uploadItem.setReady('temp', getTempMediaUpdateUrl(mediaId));
+                        }
+                    }
+                    setUploadStatus(statusNode, 'Salvo');
+                    hadSuccessfulUpload = true;
+                    bumpMediaIndicator(1);
+                    urlInput.value = '';
+                    setMediaStatus('Vídeo adicionado.');
+                } catch (e) {
+                    setUploadStatus(statusNode, e && e.message ? e.message : 'Erro');
+                    setMediaStatus(e && e.message ? e.message : 'Erro ao adicionar vídeo');
+                } finally {
+                    addingYoutube = false;
+                    if (addVideoBtn) addVideoBtn.disabled = false;
+                }
+            }
+
+            if (videoForm) {
+                var autoYoutubeInput = videoForm.querySelector('input[name="youtube_url"]');
+                if (autoYoutubeInput instanceof HTMLInputElement) {
+                    autoYoutubeInput.addEventListener('keydown', function (event) {
+                        if (event.key !== 'Enter') return;
+                        event.preventDefault();
+                        window.setTimeout(function () {
+                            addYoutubeFromInput();
+                        }, 0);
+                    });
+                    autoYoutubeInput.addEventListener('blur', function () {
+                        if (!String(autoYoutubeInput.value || '').trim()) return;
+                        window.setTimeout(function () {
+                            addYoutubeFromInput();
+                        }, 0);
+                    });
+                }
             }
 
             if (finishBtn) {
