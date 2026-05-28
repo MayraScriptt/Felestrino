@@ -13,6 +13,10 @@
             return asset('storage/'.$path);
         };
         $bannerSrc = $resolveBannerSrc($projectPage->banner_path ?? null);
+        $bannerPosX = is_numeric($projectPage?->banner_position_x ?? null) ? (int) $projectPage->banner_position_x : 50;
+        $bannerPosY = is_numeric($projectPage?->banner_position_y ?? null) ? (int) $projectPage->banner_position_y : 50;
+        $bannerPosX = max(0, min(100, $bannerPosX));
+        $bannerPosY = max(0, min(100, $bannerPosY));
     @endphp
 
     <style>
@@ -34,7 +38,7 @@
             inset: 0;
             background-image: var(--projects-banner);
             background-size: cover;
-            background-position: center;
+            background-position: var(--projects-banner-position, center);
             transform: scale(1.02);
         }
 
@@ -81,8 +85,11 @@
             padding: 1rem;
             background: #fff;
             box-shadow: 0 12px 28px rgba(8, 17, 42, 0.07);
-            display: grid;
+            display: flex;
+            flex-direction: column;
             gap: .75rem;
+            min-height: 200px;
+            height: 100%;
         }
 
         .project-card__subtitle {
@@ -94,6 +101,10 @@
             text-transform: uppercase;
         }
 
+        .project-card__subtitle.is-empty {
+            min-height: 1.1em;
+        }
+
         .project-card h2 {
             margin: 0;
             color: #0d1b3e;
@@ -101,16 +112,21 @@
             line-height: 1.25;
         }
 
-        .project-card p {
+        .project-card__description {
             margin: 0;
             color: rgba(13, 27, 62, 0.8);
             line-height: 1.65;
+        }
+
+        .project-card__description.is-empty {
+            min-height: calc(1.65em * 2);
         }
 
         .project-card__actions {
             display: flex;
             flex-wrap: wrap;
             gap: .55rem;
+            margin-top: auto;
         }
 
         .project-card__btn {
@@ -128,6 +144,7 @@
             text-transform: uppercase;
             text-decoration: none;
             padding: .58rem 1rem;
+            min-width: 160px;
             transition: filter .2s ease, transform .15s ease;
         }
 
@@ -139,7 +156,7 @@
 
     <section
         class="projects-hero @if ($bannerSrc) projects-hero--banner @endif"
-        @if ($bannerSrc) style="--projects-banner: url('{{ $bannerSrc }}')" @endif
+        @if ($bannerSrc) style="--projects-banner: url('{{ $bannerSrc }}'); --projects-banner-position: {{ $bannerPosX }}% {{ $bannerPosY }}%;" @endif
     >
         <div class="container">
             <h1>{{ $projectPage->title ?: 'Projetos' }}</h1>
@@ -159,14 +176,14 @@
             @else
                 <div class="projects-grid">
                     @foreach ($projects as $project)
+                        @php
+                            $projectSubtitle = trim((string) ($project->subtitle ?? ''));
+                            $projectDescription = trim((string) ($project->description ?? ''));
+                        @endphp
                         <article class="project-card">
-                            @if ($project->subtitle)
-                                <div class="project-card__subtitle">{{ $project->subtitle }}</div>
-                            @endif
+                            <div class="project-card__subtitle @if ($projectSubtitle === '') is-empty @endif" @if ($projectSubtitle === '') aria-hidden="true" @endif>{{ $projectSubtitle }}</div>
                             <h2>{{ $project->title }}</h2>
-                            @if ($project->description)
-                                <p>{{ $project->description }}</p>
-                            @endif
+                            <p class="project-card__description @if ($projectDescription === '') is-empty @endif" @if ($projectDescription === '') aria-hidden="true" @endif>{{ $projectDescription }}</p>
                             <div class="project-card__actions">
                                 <a class="project-card__btn" href="{{ route('site.projects.show', $project->slug) }}">
                                     {{ $project->button_text ?: 'Ver projeto' }}
