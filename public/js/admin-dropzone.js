@@ -157,6 +157,15 @@
         input.files = dt.files;
     }
 
+    function updateFileInputSafe(input, files) {
+        try {
+            updateFileInput(input, files);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
     function setupDropzone(root) {
         var input = root.querySelector('input[type="file"]');
         if (!(input instanceof HTMLInputElement)) {
@@ -344,7 +353,11 @@
                 return;
             }
 
-            updateFileInput(input, valid);
+            if (mode === 'drop') {
+                updateFileInputSafe(input, valid);
+            } else if (errors.length > 0 || (!input.multiple && incoming.length > 1)) {
+                updateFileInputSafe(input, valid);
+            }
             updateCounter(valid);
             renderPreviews(valid);
             setErrors(errors);
@@ -369,6 +382,7 @@
 
         area.addEventListener('click', function (event) {
             if (event.target === input) return;
+            event.preventDefault();
             openPicker();
         });
 
