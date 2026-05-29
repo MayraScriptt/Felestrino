@@ -16,6 +16,14 @@ img { max-width: 100%; display: block; border-radius: 10px; }
 .container { width: min(var(--container), 92%); margin-inline: auto; }
 h1, h2, h3, h4, p { margin-top: 0; }
 
+body.site-tone main p,
+body.site-tone main li,
+body.site-tone main figcaption {
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: none;
+}
+
 .site-header { background: linear-gradient(120deg, var(--blue-900), var(--blue-800)); color: var(--white); position: sticky; top: 0; z-index: 20; }
 .header-inner { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; gap: 1rem; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: .8rem; }
