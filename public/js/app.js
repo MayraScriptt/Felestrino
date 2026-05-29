@@ -66,6 +66,12 @@
         if (!(toggle instanceof HTMLButtonElement)) return;
         if (!(menu instanceof HTMLElement)) return;
 
+        const header = document.querySelector('.site-header');
+        const updateHeaderHeightVar = () => {
+            if (!(header instanceof HTMLElement)) return;
+            document.documentElement.style.setProperty('--site-header-height', `${header.offsetHeight}px`);
+        };
+
         const storageKey = 'site-nav-open';
         const mql = window.matchMedia ? window.matchMedia('(max-width: 767.98px)') : null;
 
@@ -135,6 +141,14 @@
             }
             applyState(getStoredOpen(), false);
         };
+
+        updateHeaderHeightVar();
+        window.addEventListener('resize', updateHeaderHeightVar, { passive: true });
+        if (window.ResizeObserver && header instanceof HTMLElement) {
+            try {
+                new window.ResizeObserver(() => updateHeaderHeightVar()).observe(header);
+            } catch (e) {}
+        }
 
         window.addEventListener('resize', handleViewportModeChange, { passive: true });
         if (mql) {

@@ -177,18 +177,18 @@
             }
 
             .site-nav__menu {
-                position: absolute;
-                top: calc(100% + .65rem);
-                left: auto;
-                right: 24px;
+                position: fixed;
+                top: calc(env(safe-area-inset-top) + var(--site-header-height, 72px));
+                left: 0;
+                right: 0;
                 display: grid;
                 gap: .55rem;
                 padding: .75rem;
-                border-radius: .95rem;
+                border-radius: 0;
                 background: rgba(8, 17, 42, 0.96);
                 border: 1px solid rgba(184, 144, 42, 0.24);
                 box-shadow: 0 18px 42px rgba(8, 17, 42, 0.36);
-                width: min(320px, calc(100vw - 24px));
+                width: 100vw;
                 max-height: 0;
                 opacity: 0;
                 transform: translateY(-8px);
@@ -199,7 +199,7 @@
             }
 
             .site-nav.is-open .site-nav__menu {
-                max-height: 60vh;
+                max-height: calc(100vh - (env(safe-area-inset-top) + var(--site-header-height, 72px)));
                 opacity: 1;
                 transform: translateY(0);
                 pointer-events: auto;
