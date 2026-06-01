@@ -430,6 +430,62 @@
             box-shadow: 0 0 0 3px rgba(184, 144, 42, 0.14);
         }
 
+        .admin-project-media-previews {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+            gap: .65rem;
+            margin-top: .75rem;
+        }
+
+        .admin-project-media-preview {
+            position: relative;
+            border-radius: .75rem;
+            overflow: hidden;
+            border: 1px solid rgba(13, 27, 62, 0.12);
+            background: #fff;
+            box-shadow: 0 10px 22px rgba(8, 17, 42, 0.06);
+            display: grid;
+        }
+
+        .admin-project-media-preview-remove {
+            appearance: none;
+            border: 1px solid rgba(255, 255, 255, 0.45);
+            background: rgba(8, 17, 42, 0.62);
+            color: #ffffff;
+            width: 26px;
+            height: 26px;
+            border-radius: 999px;
+            position: absolute;
+            top: .35rem;
+            right: .35rem;
+            display: grid;
+            place-items: center;
+            font-size: 1rem;
+            line-height: 1;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        .admin-project-media-preview-remove:hover,
+        .admin-project-media-preview-remove:focus-visible {
+            border-color: rgba(212, 171, 74, 0.75);
+        }
+
+        .admin-project-media-preview img {
+            width: 100%;
+            height: 96px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .admin-project-media-preview figcaption {
+            padding: .45rem .55rem;
+            font-size: .75rem;
+            color: rgba(13, 27, 62, 0.78);
+            line-height: 1.25;
+            word-break: break-word;
+        }
+
         @media (max-width: 840px) {
             .admin-modal__grid {
                 grid-template-columns: 1fr;
@@ -637,6 +693,7 @@
                         </div>
                         <p>Use o botão acima para adicionar mídias ao projeto.</p>
                         <div class="alert-success" data-project-media-indicator hidden></div>
+                <div class="admin-project-media-previews" data-project-media-previews hidden></div>
                     </article>
                 </div>
 
@@ -752,12 +809,149 @@
             var mediaUpdateUrlTemplate = @json(url('/admin/projetos/cards/__PROJECT__/imagens/__IMAGE__'));
             var tempMediaUrl = @json(route('admin.projects.temp-media.store'));
             var tempMediaUpdateUrlTemplate = @json(url('/admin/projetos/midias-temporarias/__MEDIA__'));
+            var tempMediaDeleteUrlTemplate = @json(url('/admin/projetos/midias-temporarias/__MEDIA__'));
 
             var createdProject = null;
             var draftToken = '';
             var hadSuccessfulUpload = false;
             var successfulMediaCount = 0;
             var mediaIndicatorEl = modal ? modal.querySelector('[data-project-media-indicator]') : null;
+            var mediaPreviewsEl = modal ? modal.querySelector('[data-project-media-previews]') : null;
+            var mediaPreviewBlobUrls = [];
+
+            function revokePreviewBlobs() {
+                if (!mediaPreviewBlobUrls.length) return;
+                mediaPreviewBlobUrls.forEach(function (url) {
+                    try {
+                        if (String(url || '').startsWith('blob:')) {
+                            URL.revokeObjectURL(url);
+                        }
+                    } catch (e) {
+                    }
+                });
+                mediaPreviewBlobUrls = [];
+            }
+
+            function clearMediaPreviews() {
+                revokePreviewBlobs();
+                if (!mediaPreviewsEl) return;
+                mediaPreviewsEl.innerHTML = '';
+                mediaPreviewsEl.hidden = true;
+            }
+
+            function getTempMediaDeleteUrl(mediaId) {
+                return tempMediaDeleteUrlTemplate.replace('__MEDIA__', String(mediaId));
+            }
+
+            function updateMediaCountIndicator() {
+                if (successfulMediaCount <= 0) {
+                    successfulMediaCount = 0;
+                    setMediaIndicator('');
+                    if (createSubmit && createSubmit.disabled) return;
+                    if (hadSuccessfulUpload) {
+                        setStatus('Nenhuma mídia selecionada.');
+                    }
+                    return;
+                }
+
+                var msg = successfulMediaCount === 1
+                    ? '1 mídia adicionada com sucesso.'
+                    : successfulMediaCount + ' mídias adicionadas com sucesso.';
+
+                if (!createdProject || !createdProject.id) {
+                    msg += ' (serão vinculadas ao projeto ao clicar em "Criar projeto")';
+                }
+
+                setMediaIndicator(msg);
+                if (createSubmit && createSubmit.disabled) return;
+                setStatus(msg);
+            }
+
+            function bumpMediaIndicator(countToAdd) {
+                var count = Number.parseInt(String(countToAdd || '0'), 10);
+                if (Number.isNaN(count) || count <= 0) return;
+                successfulMediaCount += count;
+                hadSuccessfulUpload = true;
+                updateMediaCountIndicator();
+            }
+
+            function decrementMediaIndicator(countToSubtract) {
+                var count = Number.parseInt(String(countToSubtract || '0'), 10);
+                if (Number.isNaN(count) || count <= 0) return;
+                successfulMediaCount -= count;
+                updateMediaCountIndicator();
+            }
+
+            function addMediaPreview(url, label) {
+                var src = String(url || '').trim();
+                if (!mediaPreviewsEl || !src) return;
+
+                var figure = document.createElement('figure');
+                figure.className = 'admin-project-media-preview';
+                figure.setAttribute('data-preview-status', 'pending');
+
+                var img = document.createElement('img');
+                img.alt = '';
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                img.src = src;
+
+                var removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'admin-project-media-preview-remove';
+                removeBtn.setAttribute('aria-label', 'Remover mídia');
+                removeBtn.textContent = '×';
+
+                var caption = document.createElement('figcaption');
+                caption.textContent = String(label || '').trim();
+
+                removeBtn.addEventListener('click', async function () {
+                    figure._canceled = true;
+
+                    var mediaKind = figure.getAttribute('data-media-kind') || '';
+                    var mediaId = figure.getAttribute('data-media-id') || '';
+
+                    if (mediaKind === 'temp' && mediaId) {
+                        removeBtn.disabled = true;
+                        try {
+                            await deleteJson(getTempMediaDeleteUrl(mediaId), { draft_token: draftToken });
+                            decrementMediaIndicator(1);
+                            setMediaStatus('Mídia removida.');
+                        } catch (e) {
+                            removeBtn.disabled = false;
+                            setMediaStatus(e && e.message ? e.message : 'Erro ao remover mídia');
+                            return;
+                        }
+                    }
+
+                    try {
+                        if (src.startsWith('blob:')) {
+                            URL.revokeObjectURL(src);
+                        }
+                    } catch (e) {
+                    }
+
+                    if (figure.parentNode) {
+                        figure.parentNode.removeChild(figure);
+                    }
+
+                    if (mediaPreviewsEl && mediaPreviewsEl.children.length === 0) {
+                        mediaPreviewsEl.hidden = true;
+                    }
+                });
+
+                figure.appendChild(removeBtn);
+                figure.appendChild(img);
+                figure.appendChild(caption);
+                mediaPreviewsEl.appendChild(figure);
+                mediaPreviewsEl.hidden = false;
+
+                if (src.startsWith('blob:')) {
+                    mediaPreviewBlobUrls.push(src);
+                }
+
+                return figure;
+            }
 
             function makeDraftToken() {
                 if (window.crypto && typeof window.crypto.randomUUID === 'function') {
@@ -789,25 +983,6 @@
                 }
                 mediaIndicatorEl.hidden = false;
                 mediaIndicatorEl.textContent = msg;
-            }
-
-            function bumpMediaIndicator(countToAdd) {
-                var count = Number.parseInt(String(countToAdd || '0'), 10);
-                if (Number.isNaN(count) || count <= 0) return;
-                successfulMediaCount += count;
-                hadSuccessfulUpload = true;
-
-                var msg = successfulMediaCount === 1
-                    ? '1 mídia adicionada com sucesso.'
-                    : successfulMediaCount + ' mídias adicionadas com sucesso.';
-
-                if (!createdProject || !createdProject.id) {
-                    msg += ' (serão vinculadas ao projeto ao clicar em "Criar projeto")';
-                }
-
-                setMediaIndicator(msg);
-                if (createSubmit && createSubmit.disabled) return;
-                setStatus(msg);
             }
 
             function setOpen(open) {
@@ -847,6 +1022,7 @@
                 draftToken = makeDraftToken();
                 successfulMediaCount = 0;
                 setMediaIndicator('');
+                clearMediaPreviews();
                 if (stepCreate) stepCreate.hidden = false;
                 stepMediaBlocks.forEach(function (el) {
                     el.hidden = false;
@@ -1034,6 +1210,26 @@
                 return json;
             }
 
+            async function deleteJson(url, payload) {
+                var res = await fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify(payload || {}),
+                });
+                var json = await res.json().catch(function () {
+                    return null;
+                });
+                if (!res.ok) {
+                    var msg = (json && (json.message || json.error)) ? (json.message || json.error) : 'Erro';
+                    throw new Error(msg);
+                }
+                return json;
+            }
+
             async function postForm(url, formData) {
                 var res = await fetch(url, {
                     method: 'POST',
@@ -1200,6 +1396,10 @@
                         previewUrl = URL.createObjectURL(file);
                     } catch (e) {
                     }
+                    var previewEl = addMediaPreview(previewUrl, file.name);
+                    if (previewEl && previewEl._canceled) {
+                        continue;
+                    }
                     var uploadItem = appendUploadItem(file.name, 'Enviando…', { previewUrl: previewUrl });
                     var statusNode = uploadItem ? uploadItem.statusNode : null;
                     try {
@@ -1210,6 +1410,13 @@
                         }
                         var result = await postForm(url, fd);
                         var mediaId = result && result.media ? result.media.id : null;
+                        if (previewEl) {
+                            previewEl.setAttribute('data-preview-status', 'ready');
+                            if (!createdProject || !createdProject.id) {
+                                previewEl.setAttribute('data-media-kind', 'temp');
+                                if (mediaId) previewEl.setAttribute('data-media-id', String(mediaId));
+                            }
+                        }
                         if (uploadItem && mediaId) {
                             if (createdProject && createdProject.id) {
                                 uploadItem.setReady('project', getMediaUpdateUrl(createdProject.id, mediaId));
@@ -1219,9 +1426,17 @@
                         }
                         setUploadStatus(statusNode, 'Salvo');
                         hadSuccessfulUpload = true;
-                        batchSuccessCount += 1;
+                        if (previewEl && previewEl._canceled && mediaId && (!createdProject || !createdProject.id)) {
+                            try {
+                                await deleteJson(getTempMediaDeleteUrl(mediaId), { draft_token: draftToken });
+                            } catch (e) {
+                            }
+                        } else {
+                            batchSuccessCount += 1;
+                        }
                     } catch (e) {
                         setUploadStatus(statusNode, e && e.message ? e.message : 'Erro');
+                        if (previewEl) previewEl.setAttribute('data-preview-status', 'error');
                     }
                 }
 
@@ -1310,6 +1525,10 @@
                 }
 
                 var thumb = getYoutubeThumb(youtubeUrl);
+                var previewEl = addMediaPreview(thumb || '', 'YouTube');
+                if (previewEl && previewEl._canceled) {
+                    return;
+                }
 
                 addingYoutube = true;
                 if (addVideoBtn) addVideoBtn.disabled = true;
@@ -1332,6 +1551,13 @@
                     }
                     var result = await postJson(url, payload);
                     var mediaId = result && result.media ? result.media.id : null;
+                    if (previewEl) {
+                        previewEl.setAttribute('data-preview-status', 'ready');
+                        if (!createdProject || !createdProject.id) {
+                            previewEl.setAttribute('data-media-kind', 'temp');
+                            if (mediaId) previewEl.setAttribute('data-media-id', String(mediaId));
+                        }
+                    }
                     if (uploadItem && mediaId) {
                         if (createdProject && createdProject.id) {
                             uploadItem.setReady('project', getMediaUpdateUrl(createdProject.id, mediaId));
@@ -1341,12 +1567,20 @@
                     }
                     setUploadStatus(statusNode, 'Salvo');
                     hadSuccessfulUpload = true;
-                    bumpMediaIndicator(1);
+                    if (previewEl && previewEl._canceled && mediaId && (!createdProject || !createdProject.id)) {
+                        try {
+                            await deleteJson(getTempMediaDeleteUrl(mediaId), { draft_token: draftToken });
+                        } catch (e) {
+                        }
+                    } else {
+                        bumpMediaIndicator(1);
+                    }
                     urlInput.value = '';
                     setMediaStatus('Vídeo adicionado.');
                 } catch (e) {
                     setUploadStatus(statusNode, e && e.message ? e.message : 'Erro');
                     setMediaStatus(e && e.message ? e.message : 'Erro ao adicionar vídeo');
+                    if (previewEl) previewEl.setAttribute('data-preview-status', 'error');
                 } finally {
                     addingYoutube = false;
                     if (addVideoBtn) addVideoBtn.disabled = false;

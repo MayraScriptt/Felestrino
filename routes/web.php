@@ -51,5 +51,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/projetos/cards/{project}/imagens/reorder', [ProjectController::class, 'mediaReorder'])->name('projects.images.reorder');
         Route::post('/projetos/midias-temporarias', [ProjectController::class, 'tempMediaStore'])->name('projects.temp-media.store');
         Route::put('/projetos/midias-temporarias/{media}', [ProjectController::class, 'tempMediaUpdate'])->name('projects.temp-media.update');
+        Route::delete('/projetos/midias-temporarias/{media}', [ProjectController::class, 'tempMediaDestroy'])->name('projects.temp-media.destroy');
     });
 });

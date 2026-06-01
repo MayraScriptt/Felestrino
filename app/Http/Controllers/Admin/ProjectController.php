@@ -409,6 +409,46 @@ class ProjectController extends Controller
         ]);
     }
 
+    public function tempMediaDestroy(Request $request, ProjectTempMedia $media): JsonResponse
+    {
+        $payload = $request->validate([
+            'draft_token' => ['required', 'string', 'max:64'],
+        ]);
+
+        $draftToken = trim((string) $payload['draft_token']);
+        if ($draftToken === '' || $media->draft_token !== $draftToken) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Item não encontrado.',
+            ], 404);
+        }
+
+        $type = (string) ($media->type ?? 'image');
+        if ($type === 'image') {
+            $path = is_string($media->image_path) ? trim($media->image_path) : '';
+            if ($path !== '') {
+                $this->deleteImage($path);
+            }
+        }
+
+        $media->delete();
+
+        $draftDir = public_path('imagens/temp/projetos/'.$draftToken);
+        if (is_dir($draftDir)) {
+            $leftovers = @scandir($draftDir);
+            if (is_array($leftovers) && count(array_diff($leftovers, ['.', '..'])) === 0) {
+                @rmdir($draftDir);
+            }
+        }
+
+        return response()->json([
+            'ok' => true,
+            'media' => [
+                'id' => $media->id,
+            ],
+        ]);
+    }
+
     public function imageUpdate(Request $request, Project $project, ProjectMedia $image): RedirectResponse|JsonResponse
     {
         $this->ensureImageBelongsToProject($project, $image);
