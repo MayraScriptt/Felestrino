@@ -48,6 +48,14 @@
             gap: 1rem;
         }
 
+        .admin-content .admin-home-item[data-card-item] {
+            grid-template-columns: minmax(0, 1fr) 140px;
+        }
+
+        .admin-content .admin-home-item[data-card-item] .admin-home-thumb--placeholder {
+            display: none;
+        }
+
         .admin-content .admin-home-actions {
             display: grid;
             gap: .5rem;
