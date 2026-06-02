@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
@@ -328,6 +329,7 @@ class HomeController extends Controller
             'detail_subtitle' => $payload['detail_subtitle'] ?? null,
             'detail_body' => $payload['detail_body'] ?? null,
             'detail_image_caption' => $payload['detail_image_caption'] ?? null,
+            'detail_image_paths' => [],
             'detail_button_text' => $payload['detail_button_text'] ?? null,
             'icon' => $payload['icon'] ?? null,
             'link_url' => $payload['link_url'] ?? null,
@@ -364,6 +366,7 @@ class HomeController extends Controller
                 'detail_body' => $card->detail_body,
                 'detail_image_path' => $card->detail_image_path,
                 'detail_image_url' => $card->detail_image_path ? $this->imageUrl($card->detail_image_path) : null,
+                'detail_image_paths' => $card->detail_image_paths ?? [],
                 'detail_image_caption' => $card->detail_image_caption,
                 'detail_button_text' => $card->detail_button_text,
                 'icon' => $card->icon,
@@ -384,6 +387,8 @@ class HomeController extends Controller
             'detail_subtitle' => ['nullable', 'string', 'max:255'],
             'detail_body' => ['nullable', 'string'],
             'detail_image_path' => ['nullable', 'string', 'max:2048'],
+            'detail_image_paths' => ['nullable', 'array'],
+            'detail_image_paths.*' => ['string', 'max:2048'],
             'detail_image_caption' => ['nullable', 'string', 'max:160'],
             'detail_button_text' => ['nullable', 'string', 'max:80'],
             'icon' => ['nullable', 'string', 'max:60'],
@@ -399,6 +404,7 @@ class HomeController extends Controller
             'detail_subtitle',
             'detail_body',
             'detail_image_path',
+            'detail_image_paths',
             'detail_image_caption',
             'detail_button_text',
             'icon',
@@ -414,6 +420,7 @@ class HomeController extends Controller
             'detail_subtitle' => $payload['detail_subtitle'] ?? null,
             'detail_body' => $payload['detail_body'] ?? null,
             'detail_image_path' => $payload['detail_image_path'] ?? $card->detail_image_path,
+            'detail_image_paths' => $payload['detail_image_paths'] ?? $card->detail_image_paths,
             'detail_image_caption' => $payload['detail_image_caption'] ?? null,
             'detail_button_text' => $payload['detail_button_text'] ?? null,
             'icon' => $payload['icon'] ?? null,
@@ -429,6 +436,7 @@ class HomeController extends Controller
             'detail_subtitle',
             'detail_body',
             'detail_image_path',
+            'detail_image_paths',
             'detail_image_caption',
             'detail_button_text',
             'icon',
@@ -457,9 +465,21 @@ class HomeController extends Controller
             'title' => ['old' => $card->title, 'new' => null],
         ]);
 
-        if (is_string($card->detail_image_path) && $card->detail_image_path !== '') {
-            $this->deleteImage($card->detail_image_path);
+        $paths = $card->detail_image_paths ?? [];
+        if (! is_array($paths)) {
+            $paths = [];
         }
+        $legacyPath = is_string($card->detail_image_path) ? $card->detail_image_path : '';
+        if ($legacyPath !== '' && $paths === []) {
+            $paths = [$legacyPath];
+        } elseif ($legacyPath !== '' && ! in_array($legacyPath, $paths, true)) {
+            $paths[] = $legacyPath;
+        }
+        $paths = array_values(array_unique(array_filter($paths, fn ($path) => is_string($path) && trim($path) !== '')));
+        foreach ($paths as $path) {
+            $this->deleteImage($path);
+        }
+
         $card->delete();
         SiteCache::bump();
 
@@ -476,15 +496,32 @@ class HomeController extends Controller
         $file = $payload['file'];
         $path = $this->storeOptimizedImage($file, 'imagens/cards');
 
-        $oldPath = $card->detail_image_path;
-        $card->update(['detail_image_path' => $path]);
+        $oldPrimary = $card->detail_image_path;
+        $oldPaths = $card->detail_image_paths ?? [];
+        if (! is_array($oldPaths)) {
+            $oldPaths = [];
+        }
+        if (is_string($oldPrimary) && $oldPrimary !== '' && $oldPaths === []) {
+            $oldPaths = [$oldPrimary];
+        } elseif (is_string($oldPrimary) && $oldPrimary !== '' && ! in_array($oldPrimary, $oldPaths, true)) {
+            $oldPaths[] = $oldPrimary;
+        }
+        $oldPaths = array_values(array_unique(array_filter($oldPaths, fn ($p) => is_string($p) && trim($p) !== '')));
 
-        if (is_string($oldPath) && $oldPath !== '' && $oldPath !== $path) {
-            $this->deleteImage($oldPath);
+        $card->update([
+            'detail_image_path' => $path,
+            'detail_image_paths' => [$path],
+        ]);
+
+        foreach ($oldPaths as $oldPath) {
+            if ($oldPath !== $path) {
+                $this->deleteImage($oldPath);
+            }
         }
 
         $this->audit($request, 'card', $card->id, 'updated', [
-            'detail_image_path' => ['old' => $oldPath, 'new' => $path],
+            'detail_image_path' => ['old' => $oldPrimary, 'new' => $path],
+            'detail_image_paths' => ['old' => $oldPaths, 'new' => [$path]],
         ]);
         SiteCache::bump();
 
@@ -493,6 +530,110 @@ class HomeController extends Controller
             'message' => 'Imagem da descrição vinculada enviada com sucesso.',
             'image_path' => $path,
             'image_url' => $this->imageUrl($path),
+            'images' => [
+                ['path' => $path, 'url' => $this->imageUrl($path)],
+            ],
+        ]);
+    }
+
+    public function cardDetailImagesStore(Request $request, HomeCard $card): JsonResponse
+    {
+        if (! Schema::hasColumn('home_cards', 'detail_image_paths')) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Seu banco ainda não está atualizado para múltiplas imagens. Rode: php artisan migrate',
+            ], 422);
+        }
+
+        $payload = $request->validate([
+            'file' => ['required', 'file', 'mimes:jpeg,png,jpg,webp,gif', 'max:5120'],
+        ]);
+
+        /** @var UploadedFile $file */
+        $file = $payload['file'];
+        $path = $this->storeOptimizedImage($file, 'imagens/cards');
+
+        $paths = $card->detail_image_paths ?? [];
+        if (! is_array($paths)) {
+            $paths = [];
+        }
+        $legacyPath = is_string($card->detail_image_path) ? $card->detail_image_path : '';
+        if ($legacyPath !== '' && $paths === []) {
+            $paths = [$legacyPath];
+        } elseif ($legacyPath !== '' && ! in_array($legacyPath, $paths, true)) {
+            $paths[] = $legacyPath;
+        }
+
+        $before = $paths;
+        $paths[] = $path;
+        $paths = array_values(array_unique(array_filter($paths, fn ($p) => is_string($p) && trim($p) !== '')));
+
+        $card->update([
+            'detail_image_paths' => $paths,
+            'detail_image_path' => $paths[0] ?? null,
+        ]);
+
+        $this->audit($request, 'card', $card->id, 'updated', [
+            'detail_image_paths' => ['old' => $before, 'new' => $paths],
+        ]);
+        SiteCache::bump();
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Imagens da descrição vinculada atualizadas com sucesso.',
+            'images' => array_map(fn ($p) => ['path' => $p, 'url' => $this->imageUrl($p)], $paths),
+        ]);
+    }
+
+    public function cardDetailImagesDestroy(Request $request, HomeCard $card): JsonResponse
+    {
+        if (! Schema::hasColumn('home_cards', 'detail_image_paths')) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Seu banco ainda não está atualizado para múltiplas imagens. Rode: php artisan migrate',
+            ], 422);
+        }
+
+        $payload = $request->validate([
+            'path' => ['required', 'string', 'max:2048'],
+        ]);
+
+        $removePath = $payload['path'];
+
+        $paths = $card->detail_image_paths ?? [];
+        if (! is_array($paths)) {
+            $paths = [];
+        }
+        $legacyPath = is_string($card->detail_image_path) ? $card->detail_image_path : '';
+        if ($legacyPath !== '' && $paths === []) {
+            $paths = [$legacyPath];
+        } elseif ($legacyPath !== '' && ! in_array($legacyPath, $paths, true)) {
+            $paths[] = $legacyPath;
+        }
+        $paths = array_values(array_unique(array_filter($paths, fn ($p) => is_string($p) && trim($p) !== '')));
+
+        if (! in_array($removePath, $paths, true)) {
+            return response()->json(['ok' => false, 'message' => 'Imagem não encontrada.'], 404);
+        }
+
+        $before = $paths;
+        $paths = array_values(array_filter($paths, fn ($p) => $p !== $removePath));
+        $card->update([
+            'detail_image_paths' => $paths,
+            'detail_image_path' => $paths[0] ?? null,
+        ]);
+
+        $this->deleteImage($removePath);
+
+        $this->audit($request, 'card', $card->id, 'updated', [
+            'detail_image_paths' => ['old' => $before, 'new' => $paths],
+        ]);
+        SiteCache::bump();
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Imagem removida com sucesso.',
+            'images' => array_map(fn ($p) => ['path' => $p, 'url' => $this->imageUrl($p)], $paths),
         ]);
     }
 

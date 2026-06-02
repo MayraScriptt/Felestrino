@@ -337,7 +337,23 @@
 
                 <div class="admin-home-list" data-home-cards-list>
                     @foreach ($cards as $card)
-                        <div class="admin-home-item" data-card-item data-id="{{ $card->id }}" data-detail-image-path="{{ $card->detail_image_path }}">
+                        @php
+                            $detailImagePaths = $card->detail_image_paths ?? [];
+                            if (! is_array($detailImagePaths)) {
+                                $detailImagePaths = [];
+                            }
+                            if ($detailImagePaths === [] && is_string($card->detail_image_path) && trim($card->detail_image_path) !== '') {
+                                $detailImagePaths = [trim($card->detail_image_path)];
+                            }
+                            $detailImagePrimary = $detailImagePaths[0] ?? '';
+                        @endphp
+                        <div
+                            class="admin-home-item"
+                            data-card-item
+                            data-id="{{ $card->id }}"
+                            data-detail-image-path="{{ $detailImagePrimary }}"
+                            data-detail-image-paths='@json($detailImagePaths)'
+                        >
                             <div class="admin-home-thumb admin-home-thumb--placeholder"></div>
                             <div class="admin-home-fields">
                                 <div class="admin-card-editor">
@@ -388,11 +404,22 @@
                                                     class="admin-card-detail-media__preview"
                                                     data-card-detail-image-preview
                                                     alt=""
-                                                    src="{{ $card->detail_image_path ? ((str_starts_with($card->detail_image_path, 'imagens/') || str_starts_with($card->detail_image_path, 'images/')) ? asset($card->detail_image_path) : asset('storage/'.$card->detail_image_path)) : asset('imagens/hero.jpg') }}"
+                                                    src="{{ $detailImagePrimary ? ((str_starts_with($detailImagePrimary, 'imagens/') || str_starts_with($detailImagePrimary, 'images/')) ? asset($detailImagePrimary) : asset('storage/'.$detailImagePrimary)) : asset('imagens/hero.jpg') }}"
                                                 >
+                                                <div class="admin-card-detail-media__gallery" data-card-detail-gallery>
+                                                    @foreach ($detailImagePaths as $path)
+                                                        @php
+                                                            $thumbUrl = (str_starts_with($path, 'imagens/') || str_starts_with($path, 'images/')) ? asset($path) : asset('storage/'.$path);
+                                                        @endphp
+                                                        <div class="admin-card-detail-media__thumb" data-card-detail-thumb data-path="{{ $path }}">
+                                                            <img src="{{ $thumbUrl }}" alt="">
+                                                            <button class="admin-card-detail-media__remove" type="button" data-card-detail-image-remove aria-label="Remover imagem">×</button>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
                                                 <div class="admin-card-detail-media__actions">
-                                                    <input class="admin-file-input" type="file" accept=".jpg,.jpeg,.png,.webp" data-card-detail-image-file>
-                                                    <button class="admin-file-trigger" type="button" data-card-detail-image-pick>Selecionar imagem</button>
+                                                    <input class="admin-file-input" type="file" accept=".jpg,.jpeg,.png,.webp,.gif" multiple data-card-detail-image-file>
+                                                    <button class="admin-file-trigger" type="button" data-card-detail-image-pick>Adicionar imagens</button>
                                                 </div>
                                                 <label>Legenda da imagem
                                                     <input type="text" maxlength="160" value="{{ $card->detail_image_caption }}" placeholder="Ex.: Foto: Equipe em campo" data-card-detail-image-caption>
@@ -528,12 +555,20 @@
                                     <td>{{ $audit->action }}</td>
                                     <td>
                                         @foreach (($audit->changes ?? []) as $field => $diff)
-                                            @if (is_array($diff) && array_key_exists('old', $diff) && array_key_exists('new', $diff))
-                                                <div><strong>{{ $field }}</strong>: {{ $diff['old'] ?? '-' }} → {{ $diff['new'] ?? '-' }}</div>
-                                            @else
-                                                <div><strong>{{ $field }}</strong>: {{ is_array($diff) ? json_encode($diff) : $diff }}</div>
-                                            @endif
-                                        @endforeach
+    @if (is_array($diff) && array_key_exists('old', $diff) && array_key_exists('new', $diff))
+        <div>
+            <strong>{{ $field }}</strong>: 
+            {{ is_array($diff['old']) ? json_encode($diff['old']) : ($diff['old'] ?? '-') }} 
+            → 
+            {{ is_array($diff['new']) ? json_encode($diff['new']) : ($diff['new'] ?? '-') }}
+        </div>
+    @else
+        <div>
+            <strong>{{ $field }}</strong>: 
+            {{ is_array($diff) ? json_encode($diff) : $diff }}
+        </div>
+    @endif
+@endforeach
                                     </td>
                                 </tr>
                             @endforeach

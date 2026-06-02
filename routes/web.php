@@ -31,6 +31,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/home/cards', [HomeController::class, 'cardStore'])->name('home.cards.store');
         Route::put('/home/cards/{card}', [HomeController::class, 'cardUpdate'])->name('home.cards.update');
         Route::post('/home/cards/{card}/detail-image', [HomeController::class, 'cardDetailImageStore'])->name('home.cards.detail-image.store');
+        Route::post('/home/cards/{card}/detail-images', [HomeController::class, 'cardDetailImagesStore'])->name('home.cards.detail-images.store');
+        Route::delete('/home/cards/{card}/detail-images', [HomeController::class, 'cardDetailImagesDestroy'])->name('home.cards.detail-images.destroy');
         Route::delete('/home/cards/{card}', [HomeController::class, 'cardDestroy'])->name('home.cards.destroy');
         Route::post('/home/cards/reorder', [HomeController::class, 'cardReorder'])->name('home.cards.reorder');
 

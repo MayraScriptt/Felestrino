@@ -55,6 +55,17 @@ nav a:hover { background: rgba(10, 31, 68, .7); }
 .home-card__icon { display: inline-flex; align-items: center; justify-content: center; width: fit-content; max-width: 100%; padding: .38rem .65rem; border-radius: 999px; background: rgba(16, 46, 99, .08); font-size: 1.05rem; line-height: 1.15; margin-bottom: .6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-card__title { font-size: 1.1rem; margin-bottom: .35rem; color: #0f172a; }
 .home-card__description { margin: 0; color: #334155; line-height: 1.6; }
+.hero-carousel.hero-carousel--card { width: min(520px, 100%); height: auto; max-height: 300px; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; border: 1px solid rgba(148, 163, 184, .35); background: #0b1f3f; }
+.hero-carousel.hero-carousel--card::before { content: none; }
+.hero-carousel.hero-carousel--card .hero-carousel__slides { position: absolute; inset: 0; }
+.hero-carousel.hero-carousel--card .hero-carousel__img { border-radius: 0 !important; }
+
+.home-card-detail__media > img { width: min(520px, 100%); height: auto; max-height: 300px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; }
+
+@media (max-width: 768px) {
+    .hero-carousel.hero-carousel--card { max-height: 260px; }
+    .home-card-detail__media > img { max-height: 260px; }
+}
 
 .btn { background: var(--blue-800); color: white; border: none; border-radius: 8px; padding: .6rem .9rem; cursor: pointer; display: inline-block; }
 .btn-secondary { background: #4b5563; margin-top: 1rem; width: 100%; }
@@ -120,6 +131,11 @@ main section { margin-bottom: 1.5rem; }
 .admin-home-actions { display: grid; gap: .5rem; align-content: start; width: 140px; }
 .admin-home-actions .btn-secondary { margin-top: 0; }
 .admin-home-cards-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.admin-card-detail-media__gallery { display: flex; gap: .55rem; overflow-x: auto; padding: .35rem 0 .15rem; }
+.admin-card-detail-media__thumb { position: relative; flex: 0 0 auto; width: 76px; height: 56px; }
+.admin-card-detail-media__thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+.admin-card-detail-media__remove { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .9); background: rgba(15, 23, 42, .75); color: #ffffff; display: grid; place-items: center; cursor: pointer; padding: 0; line-height: 1; }
+.admin-card-detail-media__remove:hover { background: rgba(15, 23, 42, .9); }
 
 .admin-hero-preview-wrap { margin-bottom: 1rem; }
 .admin-hero-preview-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: .6rem; }

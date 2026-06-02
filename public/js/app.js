@@ -191,6 +191,13 @@
         return json;
     };
 
+    const readErrorMessage = (error, fallback) => {
+        if (error && error.body && typeof error.body.message === 'string' && error.body.message.trim() !== '') {
+            return error.body.message.trim();
+        }
+        return fallback;
+    };
+
     const initHomeAdmin = (root) => {
         const indicator = document.querySelector('[data-autosave-indicator]');
         const saveAllButton = document.querySelector('[data-home-save-all]');
@@ -712,6 +719,7 @@
             const detailImageFileInput = itemEl.querySelector('[data-card-detail-image-file]');
             const detailImagePickBtn = itemEl.querySelector('[data-card-detail-image-pick]');
             const detailImagePreview = itemEl.querySelector('[data-card-detail-image-preview]');
+            const detailGallery = itemEl.querySelector('[data-card-detail-gallery]');
             const detailEnabledInput = itemEl.querySelector('[data-card-detail-enabled]');
             const detailFieldsWrap = itemEl.querySelector('[data-card-detail-fields]');
             const iconInput = itemEl.querySelector('[data-card-icon]');
@@ -743,31 +751,74 @@
                 });
             }
 
-            const uploadDetailImage = async (file) => {
-                if (!csrfToken || !file) return;
-                const form = new FormData();
-                form.append('file', file);
+            const getFallbackPreviewUrl = () => {
+                if (detailImagePreview instanceof HTMLImageElement) return detailImagePreview.src;
+                return '';
+            };
 
-                setIndicator('is-saving', 'Enviando…');
-                try {
-                    const json = await fetchJson(`/admin/home/cards/${cardId}/detail-image`, {
-                        method: 'POST',
-                        headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken },
-                        body: form,
+            const renderDetailImages = (images, fallbackUrl) => {
+                const normalized = Array.isArray(images) ? images.filter((img) => img && typeof img.path === 'string') : [];
+                const paths = normalized.map((img) => img.path);
+                itemEl.setAttribute('data-detail-image-paths', JSON.stringify(paths));
+                itemEl.setAttribute('data-detail-image-path', paths[0] || '');
+
+                if (detailImagePreview instanceof HTMLImageElement) {
+                    detailImagePreview.src = normalized[0] && typeof normalized[0].url === 'string' ? normalized[0].url : fallbackUrl;
+                }
+
+                if (detailGallery instanceof HTMLElement) {
+                    detailGallery.innerHTML = '';
+                    normalized.forEach((img) => {
+                        const thumb = document.createElement('div');
+                        thumb.className = 'admin-card-detail-media__thumb';
+                        thumb.setAttribute('data-card-detail-thumb', '');
+                        thumb.setAttribute('data-path', img.path);
+
+                        const thumbImg = document.createElement('img');
+                        thumbImg.alt = '';
+                        thumbImg.src = typeof img.url === 'string' ? img.url : '';
+
+                        const removeBtn = document.createElement('button');
+                        removeBtn.type = 'button';
+                        removeBtn.className = 'admin-card-detail-media__remove';
+                        removeBtn.textContent = '×';
+                        removeBtn.setAttribute('data-card-detail-image-remove', '');
+                        removeBtn.setAttribute('aria-label', 'Remover imagem');
+
+                        thumb.appendChild(thumbImg);
+                        thumb.appendChild(removeBtn);
+                        detailGallery.appendChild(thumb);
                     });
+                }
+            };
 
-                    const imagePath = json && typeof json.image_path === 'string' ? json.image_path : '';
-                    const imageUrl = json && typeof json.image_url === 'string' ? json.image_url : '';
-                    itemEl.setAttribute('data-detail-image-path', imagePath);
-                    if (detailImagePreview instanceof HTMLImageElement && imageUrl) {
-                        detailImagePreview.src = imageUrl;
+            const uploadDetailImages = async (files) => {
+                if (!csrfToken || !files || files.length === 0) return;
+                const fallbackUrl = getFallbackPreviewUrl();
+                setIndicator('is-saving', 'Enviando…');
+
+                try {
+                    let lastJson = null;
+                    for (const file of files) {
+                        const form = new FormData();
+                        form.append('file', file);
+                        lastJson = await fetchJson(`/admin/home/cards/${cardId}/detail-images`, {
+                            method: 'POST',
+                            headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                            body: form,
+                        });
                     }
+
+                    const images = lastJson && Array.isArray(lastJson.images) ? lastJson.images : [];
+                    renderDetailImages(images, fallbackUrl);
+
                     if (detailImageFileInput instanceof HTMLInputElement) {
                         detailImageFileInput.value = '';
                     }
                     setIndicator('is-saved', 'Salvo');
                 } catch (e) {
-                    setIndicator('is-error', 'Erro ao enviar');
+                    setIndicator('is-error', readErrorMessage(e, 'Erro ao enviar'));
+                    showSaveFeedback('is-error', readErrorMessage(e, 'Não foi possível enviar a imagem.'));
                 }
             };
 
@@ -780,19 +831,67 @@
             if (detailImageFileInput instanceof HTMLInputElement) {
                 detailImageFileInput.addEventListener('change', async () => {
                     if (!detailImageFileInput.files || detailImageFileInput.files.length === 0) return;
-                    const file = detailImageFileInput.files[0];
-                    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-                    if (!validTypes.includes(file.type)) {
-                        setIndicator('is-error', 'Formato inválido');
-                        detailImageFileInput.value = '';
-                        return;
+                    const files = Array.from(detailImageFileInput.files);
+                    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+                    const validExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+                    const isAllowedFile = (file) => {
+                        if (!file) return false;
+                        if (file.type && validTypes.includes(file.type)) return true;
+                        const name = String(file.name || '');
+                        const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+                        return ext ? validExts.includes(ext) : false;
+                    };
+
+                    for (const file of files) {
+                        if (!isAllowedFile(file)) {
+                            setIndicator('is-error', 'Formato inválido');
+                            showSaveFeedback('is-error', 'Formato inválido. Use JPG, PNG, WebP ou GIF.');
+                            detailImageFileInput.value = '';
+                            return;
+                        }
+                        if (file.size > 5 * 1024 * 1024) {
+                            setIndicator('is-error', 'Arquivo acima de 5MB');
+                            showSaveFeedback('is-error', 'Arquivo acima de 5MB.');
+                            detailImageFileInput.value = '';
+                            return;
+                        }
                     }
-                    if (file.size > 5 * 1024 * 1024) {
-                        setIndicator('is-error', 'Arquivo acima de 5MB');
-                        detailImageFileInput.value = '';
-                        return;
+
+                    await uploadDetailImages(files);
+                });
+            }
+
+            if (detailGallery instanceof HTMLElement) {
+                detailGallery.addEventListener('click', async (event) => {
+                    const target = event.target;
+                    if (!(target instanceof HTMLElement)) return;
+                    if (!target.hasAttribute('data-card-detail-image-remove')) return;
+                    const thumb = target.closest('[data-card-detail-thumb]');
+                    if (!(thumb instanceof HTMLElement)) return;
+                    const path = thumb.getAttribute('data-path') || '';
+                    if (!path) return;
+                    if (!csrfToken) return;
+                    if (!window.confirm('Remover esta imagem?')) return;
+
+                    const fallbackUrl = getFallbackPreviewUrl();
+                    setIndicator('is-saving', 'Salvando…');
+                    try {
+                        const json = await fetchJson(`/admin/home/cards/${cardId}/detail-images`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Accept: 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                            },
+                            body: JSON.stringify({ path }),
+                        });
+                        const images = json && Array.isArray(json.images) ? json.images : [];
+                        renderDetailImages(images, fallbackUrl);
+                        setIndicator('is-saved', 'Salvo');
+                    } catch (e) {
+                        setIndicator('is-error', readErrorMessage(e, 'Erro ao salvar'));
+                        showSaveFeedback('is-error', readErrorMessage(e, 'Não foi possível remover a imagem.'));
                     }
-                    await uploadDetailImage(file);
                 });
             }
 
@@ -830,6 +929,7 @@
             wrapper.setAttribute('data-card-item', '');
             wrapper.setAttribute('data-id', String(card.id));
             wrapper.setAttribute('data-detail-image-path', card.detail_image_path || '');
+            wrapper.setAttribute('data-detail-image-paths', JSON.stringify(card.detail_image_paths || []));
 
             const spacer = document.createElement('div');
             spacer.className = 'admin-home-thumb admin-home-thumb--placeholder';
@@ -908,22 +1008,27 @@
             detailImagePreview.className = 'admin-card-detail-media__preview';
             detailImagePreview.alt = '';
             detailImagePreview.setAttribute('data-card-detail-image-preview', '');
-            detailImagePreview.src = card.detail_image_url || '/images/hero.jpg';
+            detailImagePreview.src = card.detail_image_url || '/imagens/hero.jpg';
+
+            const detailGallery = document.createElement('div');
+            detailGallery.className = 'admin-card-detail-media__gallery';
+            detailGallery.setAttribute('data-card-detail-gallery', '');
 
             const detailMediaActions = document.createElement('div');
             detailMediaActions.className = 'admin-card-detail-media__actions';
 
             const detailImageFile = document.createElement('input');
             detailImageFile.type = 'file';
-            detailImageFile.accept = '.jpg,.jpeg,.png,.webp';
+            detailImageFile.accept = '.jpg,.jpeg,.png,.webp,.gif';
             detailImageFile.setAttribute('data-card-detail-image-file', '');
+            detailImageFile.multiple = true;
 
             detailImageFile.className = 'admin-file-input';
 
             const detailImagePick = document.createElement('button');
             detailImagePick.type = 'button';
             detailImagePick.className = 'admin-file-trigger';
-            detailImagePick.textContent = 'Selecionar imagem';
+            detailImagePick.textContent = 'Adicionar imagens';
             detailImagePick.setAttribute('data-card-detail-image-pick', '');
 
             detailMediaActions.appendChild(detailImageFile);
@@ -940,6 +1045,7 @@
             detailImageCaptionLabel.appendChild(detailImageCaptionInput);
 
             detailMediaWrap.appendChild(detailImagePreview);
+            detailMediaWrap.appendChild(detailGallery);
             detailMediaWrap.appendChild(detailMediaActions);
             detailMediaWrap.appendChild(detailImageCaptionLabel);
 
@@ -1665,10 +1771,12 @@
     };
 
     const heroCarousel = document.querySelector('[data-carousel="hero"]');
+    const cardCarousels = Array.from(document.querySelectorAll('[data-carousel="card-media"]'));
     initSiteNav();
     initResponsiveProseMedia();
     initRevealAnimations();
     if (heroCarousel) {
         initHeroCarousel(heroCarousel);
     }
+    cardCarousels.forEach((carousel) => initHeroCarousel(carousel));
 })();

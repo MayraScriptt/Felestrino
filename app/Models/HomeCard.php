@@ -17,6 +17,7 @@ class HomeCard extends Model
         'detail_subtitle',
         'detail_body',
         'detail_image_path',
+        'detail_image_paths',
         'detail_image_caption',
         'detail_button_text',
         'icon',
@@ -30,6 +31,7 @@ class HomeCard extends Model
         return [
             'is_active' => 'boolean',
             'detail_enabled' => 'boolean',
+            'detail_image_paths' => 'array',
         ];
     }
 }

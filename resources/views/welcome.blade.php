@@ -426,7 +426,14 @@
                 @foreach ($detailCards as $detailCard)
                     @php
                         $themeClass = $loop->odd ? 'home-card-detail--light' : 'home-card-detail--dark';
-                        $imageSrc = trim((string) ($detailCard->detail_image_path ?? '')) !== '' ? $resolveImageSrc($detailCard->detail_image_path) : null;
+                        $detailImages = $detailCard->detail_image_paths ?? [];
+                        if (! is_array($detailImages)) {
+                            $detailImages = [];
+                        }
+                        if ($detailImages === [] && trim((string) ($detailCard->detail_image_path ?? '')) !== '') {
+                            $detailImages = [trim((string) $detailCard->detail_image_path)];
+                        }
+                        $detailImages = array_values(array_unique(array_filter($detailImages, fn ($path) => is_string($path) && trim($path) !== '')));
                         $detailTitle = trim((string) ($detailCard->detail_title ?? '')) !== '' ? $detailCard->detail_title : $detailCard->title;
                     @endphp
                     <article id="card-detail-{{ $detailCard->id }}" class="home-card-detail {{ $themeClass }}">
@@ -440,9 +447,56 @@
                                     <p class="home-card-detail__body">{{ $detailCard->detail_body }}</p>
                                 @endif
                             </div>
-                            @if ($imageSrc)
+                            @if ($detailImages !== [])
                                 <figure class="home-card-detail__media">
-                                    <img src="{{ $imageSrc }}" alt="{{ $detailTitle }}" loading="lazy" decoding="async">
+                                    @if (count($detailImages) > 1)
+                                        <section class="hero-carousel hero-carousel--card" data-carousel="card-media" aria-roledescription="carrossel">
+                                            <div class="hero-carousel__slides" role="region" aria-label="Imagens de {{ $detailTitle }}">
+                                                @foreach ($detailImages as $index => $path)
+                                                    <div class="hero-carousel__slide @if ($index === 0) is-active @endif" data-carousel-slide aria-hidden="{{ $index === 0 ? 'false' : 'true' }}">
+                                                        <img
+                                                            class="hero-carousel__img"
+                                                            alt="{{ $detailTitle }}"
+                                                            @if ($index === 0)
+                                                                src="{{ $resolveImageSrc($path) }}"
+                                                                loading="lazy"
+                                                            @else
+                                                                src="{{ $transparentPixel }}"
+                                                                data-src="{{ $resolveImageSrc($path) }}"
+                                                                loading="lazy"
+                                                            @endif
+                                                            decoding="async"
+                                                        >
+                                                    </div>
+                                                @endforeach
+                                            </div>
+
+                                            <button class="hero-carousel__arrow hero-carousel__arrow--prev" type="button" data-carousel-prev aria-label="Slide anterior">
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                    <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                </svg>
+                                            </button>
+                                            <button class="hero-carousel__arrow hero-carousel__arrow--next" type="button" data-carousel-next aria-label="Próximo slide">
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                    <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                </svg>
+                                            </button>
+
+                                            <div class="hero-carousel__dots" role="tablist" aria-label="Selecionar slide">
+                                                @foreach ($detailImages as $index => $path)
+                                                    <button
+                                                        class="hero-carousel__dot @if ($index === 0) is-active @endif"
+                                                        type="button"
+                                                        data-carousel-dot="{{ $index }}"
+                                                        aria-label="Ir para a imagem {{ $index + 1 }}"
+                                                        aria-current="{{ $index === 0 ? 'true' : 'false' }}"
+                                                    ></button>
+                                                @endforeach
+                                            </div>
+                                        </section>
+                                    @else
+                                        <img src="{{ $resolveImageSrc($detailImages[0]) }}" alt="{{ $detailTitle }}" loading="lazy" decoding="async">
+                                    @endif
                                     @if ($detailCard->detail_image_caption)
                                         <figcaption class="home-card-detail__caption">{{ $detailCard->detail_image_caption }}</figcaption>
                                     @endif

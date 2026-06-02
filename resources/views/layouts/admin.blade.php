@@ -6,8 +6,13 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Painel Administrativo' }}</title>
     @php
-        $cssAsset = file_exists(public_path('mix-manifest.json')) ? mix('/css/app.css') : asset('css/app.css');
-        $jsAsset = file_exists(public_path('mix-manifest.json')) ? mix('/js/app.js') : asset('js/app.js');
+        $usingMix = file_exists(public_path('mix-manifest.json'));
+        $cssAsset = $usingMix ? mix('/css/app.css') : asset('css/app.css');
+        $jsAsset = $usingMix ? mix('/js/app.js') : asset('js/app.js');
+        if (! $usingMix) {
+            $cssAsset .= file_exists(public_path('css/app.css')) ? ('?v='.filemtime(public_path('css/app.css'))) : '';
+            $jsAsset .= file_exists(public_path('js/app.js')) ? ('?v='.filemtime(public_path('js/app.js'))) : '';
+        }
     @endphp
     @php
         $faviconSource = file_exists(public_path('imagens/favicon.png')) ? 'imagens/favicon.png' : 'imagens/logo.png';

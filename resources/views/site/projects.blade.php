@@ -85,11 +85,64 @@
             padding: 1rem;
             background: #fff;
             box-shadow: 0 12px 28px rgba(8, 17, 42, 0.07);
-            display: flex;
-            flex-direction: column;
-            gap: .75rem;
+            display: grid;
+            grid-template-columns: 132px 1fr;
+            gap: .85rem;
             min-height: 200px;
             height: 100%;
+        }
+
+        .project-card__thumb {
+            width: 132px;
+            height: 92px;
+            border-radius: .85rem;
+            overflow: hidden;
+            border: 1px solid rgba(13, 27, 62, 0.1);
+            background: rgba(13, 27, 62, 0.06);
+            box-shadow: 0 10px 24px rgba(13, 27, 62, 0.08);
+            position: relative;
+            line-height: 0;
+            align-self: start;
+        }
+
+        .project-card__thumb img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            opacity: 0;
+            transition: opacity .5s ease;
+        }
+
+        .project-card__thumb img.is-active {
+            opacity: 1;
+        }
+
+        .project-card__thumb-btn {
+            appearance: none;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            background: rgba(8, 17, 42, 0.6);
+            color: #ffffff;
+            width: 44px;
+            height: 44px;
+            border-radius: 999px;
+            position: absolute;
+            inset: 0;
+            margin: auto;
+            display: grid;
+            place-items: center;
+            font-size: 1.05rem;
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        .project-card__body {
+            display: flex;
+            flex-direction: column;
+            gap: .55rem;
+            min-width: 0;
         }
 
         .project-card__subtitle {
@@ -152,6 +205,18 @@
             filter: brightness(1.04);
             transform: translateY(-1px);
         }
+
+        @media (max-width: 560px) {
+            .project-card {
+                grid-template-columns: 1fr;
+            }
+
+            .project-card__thumb {
+                width: 100%;
+                height: auto;
+                aspect-ratio: 16 / 10;
+            }
+        }
     </style>
 
     <section
@@ -179,15 +244,62 @@
                         @php
                             $projectSubtitle = trim((string) ($project->subtitle ?? ''));
                             $projectDescription = trim((string) ($project->description ?? ''));
+                            $imageMedias = ($project->images ?? collect())
+                                ->filter(fn ($media) => (string) ($media->type ?? 'image') !== 'youtube' && trim((string) ($media->image_path ?? '')) !== '')
+                                ->values();
+
+                            $thumbSources = $imageMedias
+                                ->take(6)
+                                ->map(function ($media) {
+                                    return (str_starts_with((string) $media->image_path, 'imagens/') || str_starts_with((string) $media->image_path, 'images/'))
+                                        ? asset($media->image_path)
+                                        : asset('storage/'.$media->image_path);
+                                })
+                                ->values();
+
+                            $thumbIsYoutube = false;
+                            if ($thumbSources->isEmpty()) {
+                                $youtubeMedia = ($project->images ?? collect())
+                                    ->first(fn ($media) => (string) ($media->type ?? 'image') === 'youtube' && trim((string) ($media->youtube_id ?? '')) !== '');
+
+                                if ($youtubeMedia && trim((string) ($youtubeMedia->youtube_id ?? '')) !== '') {
+                                    $thumbIsYoutube = true;
+                                    $thumbSources = collect(['https://img.youtube.com/vi/'.(string) $youtubeMedia->youtube_id.'/hqdefault.jpg']);
+                                } elseif (is_string($project->banner_path ?? null) && trim((string) $project->banner_path) !== '') {
+                                    $thumbSources = collect([
+                                        (str_starts_with((string) $project->banner_path, 'imagens/') || str_starts_with((string) $project->banner_path, 'images/'))
+                                            ? asset($project->banner_path)
+                                            : asset('storage/'.$project->banner_path),
+                                    ]);
+                                }
+                            }
                         @endphp
                         <article class="project-card">
-                            <div class="project-card__subtitle @if ($projectSubtitle === '') is-empty @endif" @if ($projectSubtitle === '') aria-hidden="true" @endif>{{ $projectSubtitle }}</div>
-                            <h2>{{ $project->title }}</h2>
-                            <p class="project-card__description @if ($projectDescription === '') is-empty @endif" @if ($projectDescription === '') aria-hidden="true" @endif>{{ $projectDescription }}</p>
-                            <div class="project-card__actions">
-                                <a class="project-card__btn" href="{{ route('site.projects.show', $project->slug) }}">
-                                    {{ $project->button_text ?: 'Ver projeto' }}
+                            @if ($thumbSources->isNotEmpty())
+                                <a
+                                    class="project-card__thumb"
+                                    href="{{ route('site.projects.show', $project->slug) }}"
+                                    aria-label="Ver projeto {{ $project->title }}"
+                                    data-project-thumb
+                                    data-interval="2300"
+                                >
+                                    @foreach ($thumbSources as $src)
+                                        <img src="{{ $src }}" alt="Prévia do projeto {{ $project->title }}" loading="lazy" decoding="async" @if ($loop->first) class="is-active" @endif>
+                                    @endforeach
+                                    @if ($thumbIsYoutube)
+                                        <span class="project-card__thumb-btn" aria-hidden="true">▶</span>
+                                    @endif
                                 </a>
+                            @endif
+                            <div class="project-card__body">
+                                <div class="project-card__subtitle @if ($projectSubtitle === '') is-empty @endif" @if ($projectSubtitle === '') aria-hidden="true" @endif>{{ $projectSubtitle }}</div>
+                                <h2>{{ $project->title }}</h2>
+                                <p class="project-card__description @if ($projectDescription === '') is-empty @endif" @if ($projectDescription === '') aria-hidden="true" @endif>{{ $projectDescription }}</p>
+                                <div class="project-card__actions">
+                                    <a class="project-card__btn" href="{{ route('site.projects.show', $project->slug) }}">
+                                        {{ $project->button_text ?: 'Ver projeto' }}
+                                    </a>
+                                </div>
                             </div>
                         </article>
                     @endforeach
@@ -195,4 +307,55 @@
             @endif
         </div>
     </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                return;
+            }
+
+            var thumbs = document.querySelectorAll('[data-project-thumb]');
+            thumbs.forEach(function (thumb) {
+                var images = Array.prototype.slice.call(thumb.querySelectorAll('img'));
+                if (images.length <= 1) {
+                    return;
+                }
+
+                var intervalMs = Number.parseInt(String(thumb.getAttribute('data-interval') || ''), 10);
+                if (!Number.isFinite(intervalMs) || intervalMs < 800) {
+                    intervalMs = 2300;
+                }
+
+                var index = 0;
+                var timerId = null;
+
+                function show(nextIndex) {
+                    images.forEach(function (img, i) {
+                        img.classList.toggle('is-active', i === nextIndex);
+                    });
+                }
+
+                function start() {
+                    if (timerId !== null) return;
+                    timerId = window.setInterval(function () {
+                        index = (index + 1) % images.length;
+                        show(index);
+                    }, intervalMs);
+                }
+
+                function stop() {
+                    if (timerId === null) return;
+                    window.clearInterval(timerId);
+                    timerId = null;
+                }
+
+                thumb.addEventListener('mouseenter', stop);
+                thumb.addEventListener('mouseleave', start);
+                thumb.addEventListener('focusin', stop);
+                thumb.addEventListener('focusout', start);
+
+                start();
+            });
+        });
+    </script>
 @endsection
