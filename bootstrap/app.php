@@ -1,6 +1,10 @@
 <?php
 
+<<<<<<< HEAD
 use App\Http\Middleware\EnsureUserIsAdmin;
+=======
+use App\Http\Middleware\EnsureAdmin;
+>>>>>>> dev2
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,7 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
+<<<<<<< HEAD
             'admin' => EnsureUserIsAdmin::class,
+=======
+            'admin' => EnsureAdmin::class,
+>>>>>>> dev2
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

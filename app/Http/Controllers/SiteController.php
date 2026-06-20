@@ -2,89 +2,155 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MediaCategory;
+use App\Models\AboutPage;
+use App\Models\HomeCard;
+use App\Models\HomeCarouselItem;
+use App\Models\MediaItem;
 use App\Models\Page;
-use App\Models\Service;
+use App\Models\Project;
+use App\Models\ProjectPage;
 use App\Models\Setting;
+use App\Support\SiteCache;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\View\View;
 
 class SiteController extends Controller
 {
     public function home(): View
     {
-        $page = Cache::remember('site.page.home', now()->addMinutes(30), function () {
-            return Page::query()
-                ->with(['sections' => fn ($query) => $query->where('is_active', true)])
+        $data = Cache::remember(SiteCache::key('home'), now()->addMinutes(30), function () {
+            $homePage = Page::query()
                 ->where('slug', 'home')
                 ->where('is_published', true)
                 ->first();
+
+            return [
+                'settings' => $this->settings(),
+                'homePage' => $homePage,
+                'homeCarousel' => HomeCarouselItem::query()->where('is_active', true)->orderBy('display_order')->orderBy('id')->get(),
+                'homeCards' => HomeCard::query()->where('is_active', true)->orderBy('display_order')->orderBy('id')->get(),
+                'gallery' => MediaItem::query()
+                    ->where('is_video', false)
+                    ->orderBy('display_order')
+                    ->limit(8)
+                    ->get(),
+            ];
         });
 
-        $services = Cache::remember('site.services', now()->addMinutes(30), function () {
-            return Service::query()
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->get();
-        });
+        $seo = [
+            'title' => $data['settings']['seo_title'] ?? 'Felestrino Solucoes',
+            'description' => $data['settings']['seo_description'] ?? 'Solucoes inteligentes para irrigacao, pivos e monitoramento hidrico.',
+        ];
 
-        $gallery = Cache::remember('site.gallery', now()->addMinutes(30), function () {
-            return MediaCategory::query()
-                ->with(['mediaItems' => fn ($query) => $query->where('is_active', true)])
-                ->orderBy('sort_order')
-                ->get();
-        });
-
-        return view('site.home', [
-            'page' => $page,
-            'services' => $services,
-            'gallery' => $gallery,
-            'metaTitle' => $page?->meta_title ?: Setting::value('seo_default_title', 'Felestrino Soluções'),
-            'metaDescription' => $page?->meta_description ?: Setting::value('seo_default_description', ''),
-        ]);
+        return view('welcome', $data + ['seo' => $seo]);
     }
 
-    public function about(): View
+    public function page(string $slug): View
     {
-        $page = Cache::remember('site.page.about', now()->addMinutes(30), function () {
-            return Page::query()
-                ->with(['sections' => fn ($query) => $query->where('is_active', true)])
-                ->where('slug', 'sobre')
+        $data = Cache::remember(SiteCache::key("page:{$slug}"), now()->addMinutes(30), function () use ($slug) {
+            if ($slug === 'sobre') {
+                $aboutPage = AboutPage::query()->first();
+                $page = new Page([
+                    'title' => 'Sobre a empresa',
+                    'slug' => 'sobre',
+                    'content' => $aboutPage?->content ?? '',
+                    'is_published' => true,
+                ]);
+
+                return [
+                    'settings' => $this->settings(),
+                    'page' => $page,
+                    'allowHtml' => true,
+                    'banner_path' => $aboutPage?->banner_path,
+                    'banner_subtitle' => $aboutPage?->banner_subtitle,
+                    'banner_description' => $aboutPage?->banner_description,
+                    'banner_position_x' => $aboutPage?->banner_position_x,
+                    'banner_position_y' => $aboutPage?->banner_position_y,
+                ];
+            }
+
+            $page = Page::query()
+                ->where('slug', $slug)
                 ->where('is_published', true)
-                ->first();
+                ->firstOrFail();
+
+            return [
+                'settings' => $this->settings(),
+                'page' => $page,
+            ];
         });
 
-        return view('site.about', [
-            'page' => $page,
-            'metaTitle' => $page?->meta_title ?: Setting::value('seo_default_title', 'Sobre'),
-            'metaDescription' => $page?->meta_description ?: Setting::value('seo_default_description', ''),
-        ]);
+        $seo = [
+            'title' => $data['page']->meta_title ?: $data['page']->title,
+            'description' => $data['page']->meta_description ?: ($data['settings']['seo_description'] ?? ''),
+        ];
+
+        return view('site.page', $data + ['seo' => $seo]);
     }
 
-    public function services(): View
+    public function projects(): View
     {
-        $services = Cache::remember('site.services', now()->addMinutes(30), function () {
-            return Service::query()
+        $data = Cache::remember(SiteCache::key('projects'), now()->addMinutes(30), function () {
+            $projectPage = ProjectPage::query()->first();
+
+            return [
+                'settings' => $this->settings(),
+                'projectPage' => $projectPage,
+                'projects' => Project::query()
+                    ->where('is_active', true)
+                    ->with(['images' => fn ($query) => $query->where('is_active', true)->orderBy('display_order')->orderBy('id')])
+                    ->orderBy('display_order')
+                    ->orderBy('id')
+                    ->get(),
+            ];
+        });
+
+        $seo = [
+            'title' => ($data['projectPage']?->title ?: 'Projetos').' | '.($data['settings']['company_name'] ?? 'Felestrino Solucoes'),
+            'description' => $data['projectPage']?->subtitle ?: ($data['settings']['seo_description'] ?? ''),
+        ];
+
+        return view('site.projects', $data + ['seo' => $seo]);
+    }
+
+    public function project(Project $project): View
+    {
+        abort_unless($project->is_active, 404);
+
+        $data = Cache::remember(SiteCache::key("project:{$project->id}"), now()->addMinutes(30), function () use ($project) {
+            $loadedProject = Project::query()
+                ->whereKey($project->id)
                 ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->get();
+                ->with(['images' => fn ($query) => $query->where('is_active', true)->orderBy('display_order')->orderBy('id')])
+                ->firstOrFail();
+
+            return [
+                'settings' => $this->settings(),
+                'project' => $loadedProject,
+            ];
         });
 
-        return view('site.services', [
-            'services' => $services,
-            'metaTitle' => 'Serviços | '.Setting::value('seo_default_title', 'Felestrino Soluções'),
-            'metaDescription' => 'Conheça os serviços de irrigação, saneamento e monitoramento hidrológico.',
-        ]);
+        $seo = [
+            'title' => $data['project']->title.' | '.($data['settings']['company_name'] ?? 'Felestrino Solucoes'),
+            'description' => $data['project']->subtitle ?: ($data['settings']['seo_description'] ?? ''),
+        ];
+
+        return view('site.project', $data + ['seo' => $seo]);
     }
 
-    public function serviceDetail(string $slug): View
+    private function settings(): array
     {
-        $service = Service::query()->where('slug', $slug)->where('is_active', true)->firstOrFail();
-
-        return view('site.service-detail', [
-            'service' => $service,
-            'metaTitle' => $service->title.' | '.Setting::value('seo_default_title', 'Felestrino Soluções'),
-            'metaDescription' => $service->excerpt ?: Setting::value('seo_default_description', ''),
-        ]);
+        return [
+            'company_name' => Setting::getValue('company_name', 'Felestrino Solucoes'),
+            'tagline' => Setting::getValue('tagline', 'Tecnologia para agua e irrigacao'),
+            'phone' => Setting::getValue('phone'),
+            'phone2' => Setting::getValue('phone2'),
+            'message' => Setting::getValue('message'),
+            'email' => Setting::getValue('email'),
+            'address' => Setting::getValue('address'),
+            'about' => Setting::getValue('about'),
+            'seo_title' => Setting::getValue('seo_title'),
+            'seo_description' => Setting::getValue('seo_description'),
+        ];
     }
 }
